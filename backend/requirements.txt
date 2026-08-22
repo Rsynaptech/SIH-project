@@ -1,0 +1,8 @@
+pandas
+pdfplumber
+camelot-py
+scikit-learn
+xgboost
+shap
+fastapi
+uvicorn[standard]
