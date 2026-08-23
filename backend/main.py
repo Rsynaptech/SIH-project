@@ -305,7 +305,7 @@ def valid_session(token: str | None) -> bool:
         expected = hmac.new(session_secret(), payload, hashlib.sha256).digest()
         expires = int(payload.decode("utf-8").split(":")[1])
         return hmac.compare_digest(signature, expected) and expires > int(datetime.now(timezone.utc).timestamp())
-    except (ValueError, TypeError, UnicodeDecodeError, base64.binascii.Error):
+    except (HTTPException, ValueError, TypeError, UnicodeDecodeError, base64.binascii.Error):
         return False
 
 

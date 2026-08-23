@@ -39,6 +39,20 @@ uvicorn backend.main:app --reload
 
 The API is available at `http://127.0.0.1:8000/`.
 
+### Vercel deployment
+
+The Vercel project must be connected to the `main` branch of `Rsynaptech/SIH-project`. Add these environment variables in the Vercel project settings for **Production** (and Preview if those deployments are used):
+
+```text
+ADMIN_USERS_JSON={"7417444298":"rag"}
+SESSION_SECRET=<long random secret>
+AUTH_DISABLED=false
+COOKIE_SECURE=true
+CORS_ORIGINS=https://<your-vercel-domain>
+```
+
+Use the complete `ADMIN_USERS_JSON` value from `backend/.env.example`, or set `ADMIN_PHONE` and `ADMIN_PASSWORD_PREFIX` instead. `SESSION_SECRET` is required because it signs the HttpOnly login cookie; without it, `/api/auth/me` cannot validate a session and login cannot create one. Redeploy after changing environment variables. The Vercel function dependencies are declared in `api/requirements.txt`.
+
 ### PAIMANA integration
 
 The dashboard calls `GET /api/paimana/states`, which retrieves the public state summary from the [official PAIMANA portal](https://paimana-proj.mospi.gov.in/Home/GetStateView). The backend keeps a 30-minute in-memory cache so the public portal is not queried for every browser request. Add `?refresh=true` to request a fresh copy, or check `GET /api/paimana/health` for its latest successful fetch. Set `PAIMANA_CACHE_TTL_MINUTES` to change the cache period.
