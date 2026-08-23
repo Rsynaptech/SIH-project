@@ -85,6 +85,7 @@ function App() {
 
 function Login({ onAuthenticated }) {
   const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const submit = async (event) => {
@@ -92,7 +93,7 @@ function Login({ onAuthenticated }) {
     setBusy(true)
     setError('')
     try {
-      const response = await fetch('/api/auth/login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) })
+      const response = await fetch('/api/auth/login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, password }) })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         throw new Error(data.detail || 'Unable to sign in')
@@ -104,7 +105,7 @@ function Login({ onAuthenticated }) {
       setBusy(false)
     }
   }
-  return <main className="auth-shell"><section className="auth-panel"><div className="brand auth-brand"><div className="brand-mark">P</div><div><strong>PAIMANA</strong><span>PRISM / ADMIN CONSOLE</span></div></div><div className="auth-copy"><span className="eyebrow">PROJECT MONITORING ACCESS</span><h1>Welcome back.</h1><p>Enter the configured admin phone number to manage projects and review early warnings.</p></div><form className="login-form" onSubmit={submit}><label className="field"><span>Admin phone number</span><input required type="tel" inputMode="numeric" autoComplete="username" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Enter phone number" /></label>{error && <div className="login-error">{error}</div>}<button className="primary-button" disabled={busy}>{busy ? 'Checking access...' : 'Continue'} <span>↗</span></button></form><small className="auth-footnote">Private admin access · Session expires automatically</small></section><aside className="auth-aside"><span className="eyebrow">PAIMANA PRISM / 01</span><h2>Evidence before urgency.</h2><p>Turn monthly project reporting into a clear view of what needs attention next.</p><div className="auth-stat"><strong>Predict</strong><span>Explain · Benchmark · Simulate</span></div></aside></main>
+  return <main className="auth-shell"><section className="auth-panel"><div className="brand auth-brand"><div className="brand-mark">P</div><div><strong>PAIMANA</strong><span>PRISM / ADMIN CONSOLE</span></div></div><div className="auth-copy"><span className="eyebrow">PROJECT MONITORING ACCESS</span><h1>Welcome back.</h1><p>Enter your admin phone number and password to manage projects and review early warnings.</p></div><form className="login-form" onSubmit={submit}><label className="field"><span>Admin phone number</span><input required type="tel" inputMode="numeric" autoComplete="username" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Enter phone number" /></label><label className="field"><span>Password</span><input required type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" /></label><small className="password-hint">Use the configured password prefix followed by the last 4 phone digits.</small>{error && <div className="login-error">{error}</div>}<button className="primary-button" disabled={busy}>{busy ? 'Signing in...' : 'Sign in securely'} <span>↗</span></button></form><small className="auth-footnote">Private admin access · Session expires automatically</small></section><aside className="auth-aside"><span className="eyebrow">PAIMANA PRISM / 01</span><h2>Evidence before urgency.</h2><p>Turn monthly project reporting into a clear view of what needs attention next.</p><div className="auth-stat"><strong>Predict</strong><span>Explain · Benchmark · Simulate</span></div></aside></main>
 }
 
 function Dashboard({ onLogout }) {
@@ -181,6 +182,7 @@ function Dashboard({ onLogout }) {
       window.alert('Official PAIMANA figures have not loaded yet. Start the FastAPI server and wait for the State-wise projects panel to load before exporting.')
       return
     }
+    try {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const generatedAt = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
     const reportingPeriod = paimanaData.freeze_month ?? 'Not specified'
@@ -253,6 +255,10 @@ function Dashboard({ onLogout }) {
       doc.text(`Page ${page} of ${pages}`, 195, 292, { align: 'right' })
     }
     doc.save(`paimana-prism-judge-report-${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch (error) {
+      console.error('Unable to generate portfolio brief', error)
+      window.alert('The PDF brief could not be generated. Please refresh the page and try again.')
+    }
   }
   const scenarioTime = Math.min(99, selected.time + delay * 3)
   const scenarioCost = Math.min(99, selected.risk + Math.round(increase * 0.65))
@@ -268,6 +274,7 @@ function Dashboard({ onLogout }) {
           <button className={view === 'intelligence' ? 'active' : ''} onClick={() => setView('intelligence')}><span>⌁</span> Project intelligence</button>
           <button className={view === 'simulator' ? 'active' : ''} onClick={() => setView('simulator')}><span>↗</span> What-if simulator</button>
           <button className={view === 'add-project' ? 'active' : ''} onClick={() => setView('add-project')}><span>＋</span> Add project</button>
+          <button className="download-nav" onClick={exportJudgeReport}><span>↓</span> Download brief</button>
         </nav>
         <div className="sidebar-foot"><span>MODEL STATUS</span><strong>Baseline + RF ready</strong><small>Last scored 23 Aug 2026</small><button className="logout-button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); onLogout() }}>Log out</button></div>
       </aside>

@@ -7,7 +7,7 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,10 +28,22 @@ _state_cache: dict | None = None
 _state_cache_updated_at: datetime | None = None
 SESSION_COOKIE = "paimana_session"
 SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "8"))
-
-
 class LoginRequest(BaseModel):
     phone: str
+    password: str
+
+
+def admin_accounts() -> dict[str, str]:
+    configured = os.getenv("ADMIN_USERS_JSON")
+    if configured:
+        try:
+            accounts = json.loads(configured)
+            if isinstance(accounts, dict) and all(isinstance(phone, str) and isinstance(prefix, str) for phone, prefix in accounts.items()):
+                return {re.sub(r"\D", "", phone): prefix for phone, prefix in accounts.items()}
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=500, detail="ADMIN_USERS_JSON is invalid") from exc
+    phone = re.sub(r"\D", "", os.getenv("ADMIN_PHONE", ""))
+    return {phone: os.getenv("ADMIN_PASSWORD_PREFIX", "rag")} if phone else {}
 
 
 def session_secret() -> bytes:
@@ -68,7 +80,7 @@ def require_session(request: Request) -> None:
 
 def fetch_paimana_state_data() -> list[dict]:
     """Read the state summary embedded in the public PAIMANA portal page."""
-    request = Request(
+    request = UrlRequest(
         PAIMANA_STATE_VIEW_URL,
         headers={
             "User-Agent": "Mozilla/5.0 (compatible; PAIMANA-Prism/1.0)",
@@ -135,19 +147,14 @@ def read_root() -> dict[str, str]:
 
 @app.post("/api/auth/login")
 def login(payload: LoginRequest, response: Response) -> dict[str, str]:
-    configured_phone = os.getenv("ADMIN_PHONE")
-    if not configured_phone:
+    entered_phone = re.sub(r"\D", "", payload.phone)
+    password_prefix = admin_accounts().get(entered_phone)
+    expected_password = f"{password_prefix}{entered_phone[-4:]}" if password_prefix else ""
+    if not password_prefix:
         raise HTTPException(status_code=500, detail="Admin phone is not configured on the server")
-    if not hmac.compare_digest(payload.phone.strip(), configured_phone):
-        raise HTTPException(status_code=401, detail="Invalid phone number")
-    response.set_cookie(
-        SESSION_COOKIE,
-        create_session(configured_phone),
-        max_age=SESSION_TTL_HOURS * 60 * 60,
-        httponly=True,
-        samesite="lax",
-        secure=os.getenv("COOKIE_SECURE", "false").lower() == "true",
-    )
+    if not hmac.compare_digest(payload.password, expected_password):
+        raise HTTPException(status_code=401, detail="Invalid phone number or password")
+    response.set_cookie(SESSION_COOKIE, create_session(entered_phone), max_age=SESSION_TTL_HOURS * 60 * 60, httponly=True, samesite="lax", secure=os.getenv("COOKIE_SECURE", "false").lower() == "true")
     return {"message": "Authenticated"}
 
 
