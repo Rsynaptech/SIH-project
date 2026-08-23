@@ -5,6 +5,7 @@ import hmac
 import os
 import re
 import secrets
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
@@ -31,6 +32,46 @@ SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "8"))
 class LoginRequest(BaseModel):
     phone: str
     password: str
+
+
+class ProjectRecord(BaseModel):
+    id: str
+    name: str
+    sector: str
+    state: str
+    cost: float = 0
+    risk: int = 50
+    time: int = 50
+    status: str = "Watching"
+    reason: str = "No delay reported"
+    progress: int = 0
+    updated: str = "Just now"
+
+
+PROJECT_STORE_KEY = "paimana:projects"
+PROJECT_STORE_PATH = Path(__file__).resolve().parent.parent / "data" / "processed" / "projects.json"
+
+
+def project_store_request(command: str, value: object = None) -> object:
+    store_url = os.getenv("KV_REST_API_URL")
+    store_token = os.getenv("KV_REST_API_TOKEN")
+    if store_url and store_token:
+        redis_command = ["GET", PROJECT_STORE_KEY] if command == "json.get" else ["SET", PROJECT_STORE_KEY, json.dumps(value)]
+        request = UrlRequest(f"{store_url}/", data=json.dumps(redis_command).encode("utf-8"), headers={"Authorization": f"Bearer {store_token}", "Content-Type": "application/json"}, method="POST")
+        with urlopen(request, timeout=10) as response:
+            result = json.loads(response.read().decode("utf-8")).get("result")
+            return json.loads(result) if command == "json.get" and isinstance(result, str) else result
+    PROJECT_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    records = json.loads(PROJECT_STORE_PATH.read_text(encoding="utf-8")) if PROJECT_STORE_PATH.exists() else []
+    if command == "json.get":
+        return records
+    PROJECT_STORE_PATH.write_text(json.dumps(value, indent=2), encoding="utf-8")
+    return "OK"
+
+
+def saved_projects() -> list[dict]:
+    result = project_store_request("json.get")
+    return result if isinstance(result, list) else []
 
 
 def admin_accounts() -> dict[str, str]:
@@ -167,6 +208,22 @@ def current_session(request: Request) -> dict[str, bool]:
 def logout(response: Response) -> dict[str, str]:
     response.delete_cookie(SESSION_COOKIE)
     return {"message": "Logged out"}
+
+
+@app.get("/api/projects")
+def get_projects(request: Request) -> list[dict]:
+    require_session(request)
+    return saved_projects()
+
+
+@app.post("/api/projects")
+def add_project(project: ProjectRecord, request: Request) -> ProjectRecord:
+    require_session(request)
+    records = saved_projects()
+    records = [record for record in records if record.get("id") != project.id]
+    records.insert(0, project.model_dump())
+    project_store_request("json.set", records)
+    return project
 
 
 @app.get("/api/paimana/states")
