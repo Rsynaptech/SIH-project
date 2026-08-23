@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   Area,
   AreaChart,
@@ -10,6 +10,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import indiaMap from '@svg-maps/india'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const projects = [
   { id: 'N24001805', name: 'Eastern Dedicated Freight Corridor', sector: 'Railways', state: 'Uttar Pradesh', cost: 12840, risk: 91, time: 87, status: 'Delayed', reason: 'Land acquisition', progress: 62, updated: 'Mar 2025' },
@@ -28,6 +31,39 @@ const sectorData = [
   { name: 'Railways', risk: 79 }, { name: 'Water', risk: 68 }, { name: 'Power', risk: 55 }, { name: 'Urban', risk: 48 },
 ]
 
+const dashboardStateData = (() => {
+  const states = Object.values(projects.reduce((result, project) => {
+    const state = result[project.state] ?? {
+      StateId: project.state,
+      StateName: project.state,
+      ProjectCount: 0,
+      ProjectCost: 0,
+      RevisedCost: 0,
+      Expend: 0,
+      CompletedProject: 0,
+      NewAddedProject: 0,
+    }
+    state.ProjectCount += 1
+    state.ProjectCost += project.cost
+    state.RevisedCost += project.cost * (1 + project.risk / 1000)
+    state.Expend += project.cost * project.progress / 100
+    state.CompletedProject += project.status === 'Completed' ? 1 : 0
+    result[project.state] = state
+    return result
+  }, {}))
+  const national_total = states.reduce((total, state) => ({
+    StateId: 0,
+    StateName: 'Portfolio total',
+    ProjectCount: total.ProjectCount + state.ProjectCount,
+    ProjectCost: total.ProjectCost + state.ProjectCost,
+    RevisedCost: total.RevisedCost + state.RevisedCost,
+    Expend: total.Expend + state.Expend,
+    CompletedProject: total.CompletedProject + state.CompletedProject,
+    NewAddedProject: total.NewAddedProject + state.NewAddedProject,
+  }), { StateId: 0, StateName: 'Portfolio total', ProjectCount: 0, ProjectCost: 0, RevisedCost: 0, Expend: 0, CompletedProject: 0, NewAddedProject: 0 })
+  return { source: 'PAIMANA Prism dashboard demonstration records', freeze_month: 'Mar 2025', national_total, states, stale: false }
+})()
+
 function RiskPill({ score }) {
   return <span className={`risk-pill ${score >= 75 ? 'critical' : score >= 55 ? 'watch' : 'stable'}`}>{score}</span>
 }
@@ -37,8 +73,147 @@ function App() {
   const [selected, setSelected] = useState(projects[0])
   const [delay, setDelay] = useState(3)
   const [increase, setIncrease] = useState(10)
+  const paimanaData = dashboardStateData
+  const paimanaError = ''
 
   const openProject = (project) => { setSelected(project); setView('intelligence') }
+  const exportBrief = () => {
+    const official = paimanaData?.national_total
+    const lines = [
+      'PAIMANA PRISM — PORTFOLIO BRIEF',
+      `Generated: ${new Date().toLocaleString('en-IN')}`,
+      '',
+      'PORTFOLIO OVERVIEW',
+      `Monitored projects: ${officialNumber(official?.ProjectCount ?? 184)}`,
+      'High cost risk: 18',
+      'High time risk: 27',
+      'Priority attention: 12',
+      '',
+      'OFFICIAL PAIMANA SUMMARY',
+      `Reporting period: ${paimanaData?.freeze_month ?? 'Not available'}`,
+      `Original cost: ₹${officialNumber(official?.ProjectCost)} Cr`,
+      `Latest revised cost: ₹${officialNumber(official?.RevisedCost)} Cr`,
+      `Expenditure: ₹${officialNumber(official?.Expend)} Cr`,
+      `Source: ${paimanaData?.source ?? 'PAIMANA data was unavailable when this brief was generated'}`,
+      '',
+      'PRIORITY PROJECTS',
+      ...projects.map((project, index) => `${index + 1}. ${project.name} (${project.state}) — ${project.status}; cost risk ${project.risk}; time risk ${project.time}; reported reason: ${project.reason}.`),
+      '',
+      'Note: Priority-project risk scores are the dashboard demonstration model. State totals are loaded from PAIMANA when available.',
+    ]
+    const file = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `paimana-prism-brief-${new Date().toISOString().slice(0, 10)}.txt`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+  const exportOfficialBrief = () => {
+    const official = paimanaData?.national_total
+    if (!official) {
+      window.alert('Dashboard data is unavailable. Refresh the page and try again.')
+      return
+    }
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
+    const currency = (value) => `Rs. ${officialNumber(value)} Cr`
+    const stateRows = [...(paimanaData.states ?? [])]
+      .sort((left, right) => (Number(right.ProjectCount) || 0) - (Number(left.ProjectCount) || 0))
+      .map((state) => `<tr><td>${escapeHtml(state.StateName)}</td><td>${officialNumber(state.ProjectCount)}</td><td>${currency(state.ProjectCost)}</td><td>${currency(state.RevisedCost)}</td><td>${currency(state.Expend)}</td><td>${officialNumber(state.CompletedProject)}</td><td>${officialNumber(state.NewAddedProject)}</td></tr>`)
+      .join('')
+    const generatedAt = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>PAIMANA Prism Portfolio Brief</title><style>body{font-family:Arial,sans-serif;color:#15231f;margin:40px;line-height:1.4}h1{margin:0;color:#173d34}h2{margin:30px 0 10px;color:#173d34;font-size:18px}.meta{color:#5b6c65;font-size:12px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}.summary div{border:1px solid #cdd9d2;padding:12px}.summary span{display:block;color:#687970;font-size:11px;text-transform:uppercase}.summary strong{display:block;margin-top:6px;font-size:20px}table{border-collapse:collapse;width:100%;font-size:11px}th{background:#173d34;color:#fff;text-align:left}th,td{border:1px solid #d6dfda;padding:8px}tr:nth-child(even){background:#f4f8f5}.note{font-size:11px;color:#5b6c65;margin-top:18px}@media print{body{margin:20px}}</style></head><body><h1>PAIMANA Prism Portfolio Brief</h1><p class="meta">Generated ${escapeHtml(generatedAt)} | Official PAIMANA reporting period: ${escapeHtml(paimanaData.freeze_month ?? 'Not specified')}</p><h2>National summary</h2><section class="summary"><div><span>Projects</span><strong>${officialNumber(official.ProjectCount)}</strong></div><div><span>Original cost</span><strong>${currency(official.ProjectCost)}</strong></div><div><span>Revised cost</span><strong>${currency(official.RevisedCost)}</strong></div><div><span>Expenditure</span><strong>${currency(official.Expend)}</strong></div><div><span>Completed this month</span><strong>${officialNumber(official.CompletedProject)}</strong></div><div><span>Newly added</span><strong>${officialNumber(official.NewAddedProject)}</strong></div></section><h2>State-wise project status</h2><table><thead><tr><th>State / UT</th><th>Projects</th><th>Original cost</th><th>Revised cost</th><th>Expenditure</th><th>Completed</th><th>New</th></tr></thead><tbody>${stateRows}</tbody></table><p class="note">Source: ${escapeHtml(paimanaData.source)}. This brief contains official PAIMANA state totals retrieved by the dashboard.</p></body></html>`
+    const file = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `paimana-statewise-brief-${new Date().toISOString().slice(0, 10)}.html`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+  const exportJudgeReport = () => {
+    const official = paimanaData?.national_total
+    if (!official) {
+      window.alert('Official PAIMANA figures have not loaded yet. Start the FastAPI server and wait for the State-wise projects panel to load before exporting.')
+      return
+    }
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const generatedAt = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+    const reportingPeriod = paimanaData.freeze_month ?? 'Not specified'
+    const money = (value) => `INR ${officialNumber(value)} Cr`
+    doc.setFillColor(23, 61, 52)
+    doc.rect(0, 0, 210, 30, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(19)
+    doc.text('PAIMANA Prism - Portfolio Brief', 15, 14)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.text(`Dashboard state-wise project data | Reporting period: ${reportingPeriod}`, 15, 21)
+    doc.setTextColor(37, 43, 41)
+    doc.setFontSize(8)
+    doc.text(`Generated: ${generatedAt}`, 15, 38)
+    doc.text('Source: PAIMANA Prism dashboard records shown in this application', 15, 43)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.text('National summary', 15, 53)
+    autoTable(doc, {
+      startY: 57,
+      head: [['Projects', 'Original cost', 'Revised cost'], ['Expenditure', 'Completed this month', 'Newly added']],
+      body: [[officialNumber(official.ProjectCount), money(official.ProjectCost), money(official.RevisedCost)], [money(official.Expend), officialNumber(official.CompletedProject), officialNumber(official.NewAddedProject)]],
+      theme: 'grid',
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 4, textColor: [37, 43, 41] },
+      headStyles: { fillColor: [229, 238, 225], textColor: [37, 43, 41], fontStyle: 'bold' },
+    })
+
+    const priorityY = doc.lastAutoTable.finalY + 11
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.text('Priority project signals', 15, priorityY)
+    autoTable(doc, {
+      startY: priorityY + 4,
+      head: [['Project', 'State', 'Status', 'Cost risk', 'Time risk', 'Reported reason']],
+      body: projects.map((project) => [project.name, project.state, project.status, String(project.risk), String(project.time), project.reason]),
+      theme: 'striped',
+      styles: { font: 'helvetica', fontSize: 7.5, cellPadding: 2.5, textColor: [37, 43, 41] },
+      headStyles: { fillColor: [23, 61, 52], textColor: [255, 255, 255] },
+      columnStyles: { 0: { cellWidth: 43 }, 1: { cellWidth: 27 }, 2: { cellWidth: 20 }, 3: { cellWidth: 18 }, 4: { cellWidth: 18 }, 5: { cellWidth: 38 } },
+    })
+
+    const stateY = doc.lastAutoTable.finalY + 11
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.text('State-wise project status', 15, stateY)
+    autoTable(doc, {
+      startY: stateY + 4,
+      head: [['State / UT', 'Projects', 'Original cost', 'Revised cost', 'Expenditure', 'Completed', 'New']],
+      body: [...(paimanaData.states ?? [])]
+        .sort((left, right) => (Number(right.ProjectCount) || 0) - (Number(left.ProjectCount) || 0))
+        .map((state) => [state.StateName, officialNumber(state.ProjectCount), money(state.ProjectCost), money(state.RevisedCost), money(state.Expend), officialNumber(state.CompletedProject), officialNumber(state.NewAddedProject)]),
+      theme: 'striped',
+      styles: { font: 'helvetica', fontSize: 6.8, cellPadding: 1.8, textColor: [37, 43, 41] },
+      headStyles: { fillColor: [23, 61, 52], textColor: [255, 255, 255], fontSize: 6.8 },
+      columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 14 }, 2: { cellWidth: 31 }, 3: { cellWidth: 31 }, 4: { cellWidth: 31 }, 5: { cellWidth: 18 }, 6: { cellWidth: 14 } },
+      margin: { left: 15, right: 15 },
+    })
+    const pages = doc.getNumberOfPages()
+    for (let page = 1; page <= pages; page += 1) {
+      doc.setPage(page)
+      doc.setDrawColor(207, 216, 210)
+      doc.line(15, 287, 195, 287)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(91, 108, 101)
+      doc.text('PAIMANA Prism | Decision-support dashboard | Report generated from displayed dashboard data', 15, 292)
+      doc.text(`Page ${page} of ${pages}`, 195, 292, { align: 'right' })
+    }
+    doc.save(`paimana-prism-judge-report-${new Date().toISOString().slice(0, 10)}.pdf`)
+  }
   const scenarioTime = Math.min(99, selected.time + delay * 3)
   const scenarioCost = Math.min(99, selected.risk + Math.round(increase * 0.65))
 
@@ -57,9 +232,9 @@ function App() {
       </aside>
 
       <main className="content">
-        <header className="topbar"><div><span className="eyebrow">MINISTRY MONITORING / MONTHLY FLASH REPORTS</span><h1>{view === 'overview' ? 'Portfolio overview' : view === 'queue' ? 'Early-warning queue' : view === 'simulator' ? 'Decision-support simulator' : 'Project intelligence'}</h1></div><div className="header-meta"><span>Last report <strong>Mar 2025</strong></span><button className="export">↓ Export brief</button></div></header>
+        <header className="topbar"><div><span className="eyebrow">MINISTRY MONITORING / MONTHLY FLASH REPORTS</span><h1>{view === 'overview' ? 'Portfolio overview' : view === 'queue' ? 'Early-warning queue' : view === 'simulator' ? 'Decision-support simulator' : 'Project intelligence'}</h1></div><div className="header-meta"><span>Last report <strong>Mar 2025</strong></span><button className="export" onClick={exportJudgeReport}>↓ Download PDF report</button></div></header>
 
-        {view === 'overview' && <Overview onOpen={openProject} />}
+        {view === 'overview' && <Overview onOpen={openProject} paimanaData={paimanaData} paimanaError={paimanaError} />}
         {view === 'queue' && <Queue onOpen={openProject} />}
         {view === 'intelligence' && <Intelligence project={selected} onSimulate={() => setView('simulator')} />}
         {view === 'simulator' && <Simulator project={selected} delay={delay} increase={increase} setDelay={setDelay} setIncrease={setIncrease} scenarioTime={scenarioTime} scenarioCost={scenarioCost} />}
@@ -68,17 +243,89 @@ function App() {
   )
 }
 
-function Overview({ onOpen }) {
+function Overview({ onOpen, paimanaData, paimanaError }) {
   return <>
     <div className="hero-line"><div><p className="muted">A forward-looking view of infrastructure delivery health.</p><div className="data-badge">● SYNTHETIC DEMO RECORDS · REPLACE WITH VERIFIED PAIMANA EXTRACTS</div></div><span className="period">APR 2024 — MAR 2025 <i>12 months</i></span></div>
     <section className="metric-grid"><Metric label="Monitored projects" value="184" detail="+12 this period" /><Metric label="High cost risk" value="18" detail="9.8% of portfolio" tone="red" /><Metric label="High time risk" value="27" detail="14.7% of portfolio" tone="amber" /><Metric label="Priority attention" value="12" detail="6 need action today" tone="ink" /></section>
     <div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-head"><div><span className="eyebrow">EXPOSURE BY SECTOR</span><h2>Risk concentration</h2></div><span className="legend"><i /> Avg. risk score</span></div><ResponsiveContainer width="100%" height={240}><BarChart data={sectorData} margin={{ top: 20, right: 10, left: -25, bottom: 0 }}><CartesianGrid vertical={false} stroke="#e6e1d8" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6d706b', fontSize: 12 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#9a9b95', fontSize: 11 }} /><Tooltip cursor={{ fill: '#f4f0e8' }} /><Bar dataKey="risk" fill="#d6553e" radius={[3, 3, 0, 0]} barSize={38} /></BarChart></ResponsiveContainer></section><section className="panel attention-panel"><div className="panel-head"><div><span className="eyebrow">ACTION REQUIRED</span><h2>Priority projects</h2></div><button className="text-button" onClick={() => onOpen(projects[0])}>View queue →</button></div>{projects.slice(0, 3).map((project) => <ProjectRow key={project.id} project={project} onOpen={onOpen} />)}</section></div>
+    <StateProjects paimanaData={paimanaData} paimanaError={paimanaError} />
     <section className="panel table-panel"><div className="panel-head"><div><span className="eyebrow">PORTFOLIO PULSE</span><h2>Latest project signals</h2></div><button className="filter">All sectors ▾</button></div><div className="table-wrap"><table><thead><tr><th>Project</th><th>Sector</th><th>State</th><th>Cost risk</th><th>Time risk</th><th>Status</th></tr></thead><tbody>{projects.map((project) => <tr key={project.id} onClick={() => onOpen(project)}><td><strong>{project.name}</strong><small>[{project.id}]</small></td><td>{project.sector}</td><td>{project.state}</td><td><RiskPill score={project.risk} /></td><td><RiskPill score={project.time} /></td><td><span className="status">{project.status}</span></td></tr>)}</tbody></table></div></section>
   </>
 }
 
 function Metric({ label, value, detail, tone = '' }) { return <div className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div> }
 function ProjectRow({ project, onOpen }) { return <button className="project-row" onClick={() => onOpen(project)}><span className="priority-dot" /><span><strong>{project.name}</strong><small>{project.id} · {project.reason}</small></span><RiskPill score={project.risk} /><span className="chevron">→</span></button> }
+
+const officialNumber = (value) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(value ?? 0)
+const normalizeStateName = (name = '') => name.toUpperCase().replace(/&/g, 'AND').replace(/[^A-Z]/g, '')
+const stateAliases = {
+  DELHI: 'NCTOFDELHI', ODISHA: 'ORISSA', PUDUCHERRY: 'PONDICHERRY',
+  DADRAANDNAGARHAVELI: 'DADRAANDNAGARHAVELIANDDAMANDIU', DAMANDIU: 'DADRAANDNAGARHAVELIANDDAMANDIU',
+}
+const stateKey = (name) => stateAliases[normalizeStateName(name)] || normalizeStateName(name)
+
+function StateProjects({ paimanaData, paimanaError }) {
+  const [selectedState, setSelectedState] = useState('')
+  const states = paimanaData?.states ?? []
+  const activeState = states.find((state) => stateKey(state.StateName) === stateKey(selectedState)) || paimanaData?.national_total
+  const selectState = useCallback((stateName) => setSelectedState(stateName), [])
+
+  return <section className="state-projects panel">
+    <div className="panel-head"><div><span className="eyebrow">DASHBOARD STATE DATA</span><h2>State-wise projects</h2></div>{paimanaData && <span className="period">AS OF {paimanaData.freeze_month?.toUpperCase()}</span>}</div>
+    {paimanaError && <p className="data-error">{paimanaError} Start the FastAPI server to load the official state figures.</p>}
+    {!paimanaData && !paimanaError && <p className="muted">Loading the latest state figures from PAIMANA…</p>}
+    {paimanaData?.stale && <p className="data-error">PAIMANA is temporarily unavailable; showing the most recently retrieved official figures.</p>}
+    {activeState && <div className="state-content">
+      <div className="state-summary">
+        <span className="eyebrow">HOVER A STATE ON THE MAP</span><h3>{activeState.StateName}</h3>
+        <div className="state-stat-grid">
+          <StateStat label="Projects" value={officialNumber(activeState.ProjectCount)} />
+          <StateStat label="Original cost" value={`₹${officialNumber(activeState.ProjectCost)} Cr`} />
+          <StateStat label="Latest revised cost" value={`₹${officialNumber(activeState.RevisedCost)} Cr`} />
+          <StateStat label="Expenditure" value={`₹${officialNumber(activeState.Expend)} Cr`} />
+          <StateStat label="Completed this month" value={officialNumber(activeState.CompletedProject)} />
+          <StateStat label="Newly added" value={officialNumber(activeState.NewAddedProject)} />
+        </div>
+        <small className="source-attribution">Source: PAIMANA Prism dashboard demonstration records</small>
+      </div>
+      <StateMap states={states} onHover={selectState} />
+    </div>}
+  </section>
+}
+
+function StateStat({ label, value }) { return <div><span>{label}</span><strong>{value}</strong></div> }
+
+function StateMap({ states, onHover }) {
+  const [hovered, setHovered] = useState(null)
+  const byName = new globalThis.Map(states.map((state) => [stateKey(state.StateName), state]))
+  const counts = states.map((state) => Number(state.ProjectCount) || 0)
+  const minCount = Math.min(...counts, 0)
+  const maxCount = Math.max(...counts, 1)
+  const colourFor = (count) => {
+    const ratio = Math.max(0, Math.min(1, (Number(count) - minCount) / Math.max(1, maxCount - minCount)))
+    const start = [255, 244, 194]
+    const end = [207, 72, 82]
+    return `rgb(${start.map((value, index) => Math.round(value + (end[index] - value) * ratio)).join(',')})`
+  }
+  const showState = (state) => {
+    if (!state) return
+    setHovered(state)
+    onHover(state.StateName)
+  }
+
+  return <div className="state-map-wrap">
+    <svg className="state-map" viewBox={indiaMap.viewBox} role="img" aria-label="India map coloured by official PAIMANA project count">
+      {indiaMap.locations.map((location) => {
+        const state = byName.get(stateKey(location.name))
+        return <path key={location.id} d={location.path} className={state ? 'map-state has-data' : 'map-state'} fill={state ? colourFor(state.ProjectCount) : '#d8ddd8'} onMouseEnter={() => showState(state)} onFocus={() => showState(state)} onClick={() => showState(state)}>
+          <title>{state ? `${state.StateName}: ${officialNumber(state.ProjectCount)} projects` : `${location.name}: no PAIMANA data`}</title>
+        </path>
+      })}
+    </svg>
+    {hovered && <div className="map-tooltip"><strong>{hovered.StateName}</strong><span>{officialNumber(hovered.ProjectCount)} projects</span></div>}
+    <span className="map-legend"><i /> Fewer projects <i /> More projects</span>
+  </div>
+}
 
 function Queue({ onOpen }) { return <section className="panel queue-panel"><div className="queue-toolbar"><div><p className="muted">Ranked by combined predicted deterioration over the next 1–3 reports.</p></div><div className="toolbar-controls"><button className="filter">All risks ▾</button><button className="filter">All states ▾</button></div></div><div className="queue-list">{projects.concat(projects).map((project, index) => <ProjectRow key={`${project.id}-${index}`} project={project} onOpen={onOpen} />)}</div></section> }
 

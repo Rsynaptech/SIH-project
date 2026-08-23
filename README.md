@@ -39,6 +39,10 @@ uvicorn backend.main:app --reload
 
 The API is available at `http://127.0.0.1:8000/`.
 
+### PAIMANA integration
+
+The dashboard calls `GET /api/paimana/states`, which retrieves the public state summary from the [official PAIMANA portal](https://paimana-proj.mospi.gov.in/Home/GetStateView). The backend keeps a 30-minute in-memory cache so the public portal is not queried for every browser request. Add `?refresh=true` to request a fresh copy, or check `GET /api/paimana/health` for its latest successful fetch. Set `PAIMANA_CACHE_TTL_MINUTES` to change the cache period.
+
 ### Frontend
 
 ```powershell
