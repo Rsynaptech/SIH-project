@@ -122,11 +122,12 @@ function Dashboard({ onLogout }) {
   const [view, setView] = useState('overview')
   const [selected, setSelected] = useState(projects[0])
   const [portfolioProjects, setPortfolioProjects] = useState(projects)
+  const [interventionProjects, setInterventionProjects] = useState([])
   const [officialPaimana, setOfficialPaimana] = useState(null)
   const [editingProject, setEditingProject] = useState(null)
   const [delay, setDelay] = useState(3)
   const [increase, setIncrease] = useState(10)
-  const adminProjects = portfolioProjects.filter((project) => !projects.some((base) => base.id === project.id))
+  const adminProjects = portfolioProjects.filter((project) => !projects.some((base) => base.id === project.id) && !isInterventionProject(project))
   const paimanaData = officialPaimana ? mergeAddedProjectsIntoStates(officialPaimana, adminProjects) : null
   const paimanaError = officialPaimana === null ? 'Loading official PAIMANA state data...' : ''
 
@@ -145,19 +146,26 @@ function Dashboard({ onLogout }) {
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('Official PAIMANA data unavailable')))
       .then((data) => setOfficialPaimana(data))
       .catch(() => setOfficialPaimana({ states: [], national_total: null, source: 'PAIMANA unavailable', stale: true }))
-    const loadProjects = () => fetch('/api/projects', { credentials: 'include' })
-      .then((response) => {
+    const loadProjects = async () => {
+      try {
+        const response = await fetch('/api/projects', { credentials: 'include' })
         if (response.status === 401) { onLogout(); throw new Error('Session expired') }
-        return response.ok ? response.json() : Promise.reject(new Error('API unavailable'))
-      })
-      .then((saved) => {
-        const combined = [...saved, ...loadLocalProjects().filter((item) => !saved.some((project) => project.id === item.id))]
-        setPortfolioProjects([...combined, ...projects.filter((project) => !combined.some((item) => item.id === project.id))])
-      })
-      .catch(() => {
+        if (!response.ok) throw new Error('API unavailable')
+        const saved = await response.json()
+        const localProjects = loadLocalProjects()
+        const combined = [...saved, ...localProjects.filter((item) => !saved.some((project) => project.id === item.id))]
+        const mergedInterventions = combined.filter(isInterventionProject)
+        const officialProjects = combined.filter((project) => !isInterventionProject(project))
+        setInterventionProjects(mergedInterventions)
+        setPortfolioProjects([...officialProjects, ...projects.filter((project) => !officialProjects.some((item) => item.id === project.id)), ...mergedInterventions.filter((project) => !projects.some((item) => item.id === project.id))])
+      } catch {
         const saved = loadLocalProjects()
-        setPortfolioProjects([...saved, ...projects.filter((project) => !saved.some((item) => item.id === project.id))])
-      })
+        const mergedInterventions = saved.filter(isInterventionProject)
+        const officialProjects = saved.filter((project) => !isInterventionProject(project))
+        setInterventionProjects(mergedInterventions)
+        setPortfolioProjects([...officialProjects, ...projects.filter((project) => !officialProjects.some((item) => item.id === project.id)), ...mergedInterventions.filter((project) => !projects.some((item) => item.id === project.id))])
+      }
+    }
     loadProjects()
     const refreshTimer = window.setInterval(loadProjects, 15000)
     return () => window.clearInterval(refreshTimer)
@@ -185,9 +193,9 @@ function Dashboard({ onLogout }) {
       `Source: ${paimanaData?.source ?? 'PAIMANA data was unavailable when this brief was generated'}`,
       '',
       'PRIORITY PROJECTS',
-      ...portfolioProjects.map((project, index) => `${index + 1}. ${project.name} (${project.state}) — ${project.status}; cost risk ${project.risk}; time risk ${project.time}; reported reason: ${project.reason}.`),
+      ...portfolioProjects.filter((project) => !isInterventionProject(project)).map((project, index) => `${index + 1}. ${project.name} (${project.state}) — ${project.status}; cost risk ${project.risk}; time risk ${project.time}; reported reason: ${project.reason}.`),
       '',
-      'Note: Priority-project risk scores are the dashboard demonstration model. State totals are loaded from PAIMANA when available.',
+      'Note: Intervention-only records are excluded from official PAIMANA risk-scored totals and are shown separately in the dashboard.',
     ]
     const file = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(file)
@@ -349,12 +357,88 @@ function Overview({ projects, onOpen, paimanaData, paimanaError }) {
     <section className="metric-grid"><Metric label="Official monitored projects" value={projectCount === null ? '—' : officialNumber(projectCount)} detail={official ? 'PAIMANA state summary' : 'Official data unavailable'} /><Metric label="Original portfolio cost" value={official ? `₹${officialNumber(official.ProjectCost)} Cr` : '—'} detail={official ? 'Official PAIMANA' : 'Official data unavailable'} tone="red" /><Metric label="Latest revised cost" value={official ? `₹${officialNumber(official.RevisedCost)} Cr` : '—'} detail={official ? `${costGrowth >= 0 ? '+' : ''}${costGrowth}% vs original` : 'Official data unavailable'} tone="amber" /><Metric label="Completed this month" value={official ? officialNumber(official.CompletedProject) : '—'} detail={official ? 'Official PAIMANA' : 'Official data unavailable'} tone="ink" /></section>
     <div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-head"><div><span className="eyebrow">EXPOSURE BY SECTOR</span><h2>Risk concentration</h2></div><span className="legend"><i /> Avg. risk score</span></div><ResponsiveContainer width="100%" height={240}><BarChart data={sectorData} margin={{ top: 20, right: 10, left: -25, bottom: 0 }}><CartesianGrid vertical={false} stroke="#e6e1d8" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6d706b', fontSize: 12 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#9a9b95', fontSize: 11 }} /><Tooltip cursor={{ fill: '#f4f0e8' }} /><Bar dataKey="risk" fill="#d6553e" radius={[3, 3, 0, 0]} barSize={38} /></BarChart></ResponsiveContainer></section><section className="panel attention-panel"><div className="panel-head"><div><span className="eyebrow">ACTION REQUIRED</span><h2>Priority projects</h2></div><button className="text-button" onClick={() => onOpen(projects[0])}>View queue →</button></div>{projects.slice(0, 3).map((project) => <ProjectRow key={project.id} project={project} onOpen={onOpen} />)}</section></div>
     <StateProjects projects={projects} paimanaData={paimanaData} paimanaError={paimanaError} />
-    <section className="panel table-panel"><div className="panel-head"><div><span className="eyebrow">PORTFOLIO PULSE</span><h2>Latest project signals</h2></div><button className="filter">All sectors ▾</button></div><div className="table-wrap"><table><thead><tr><th>Project</th><th>Sector</th><th>State</th><th>Cost risk</th><th>Time risk</th><th>Status</th></tr></thead><tbody>{projects.map((project) => <tr key={project.id} onClick={() => onOpen(project)}><td><strong>{project.name}</strong><small>[{project.id}]</small></td><td>{project.sector}</td><td>{project.state}</td><td><RiskPill score={project.risk} /></td><td><RiskPill score={project.time} /></td><td><span className="status">{project.status}</span></td></tr>)}</tbody></table></div></section>
+    <section className="panel table-panel"><div className="panel-head"><div><span className="eyebrow">PORTFOLIO PULSE</span><h2>Latest project signals</h2></div><button className="filter">All sectors ▾</button></div><div className="table-wrap"><table><thead><tr><th>Project</th><th>Sector</th><th>State</th><th>Cost risk</th><th>Time risk</th><th>Status</th></tr></thead><tbody>{projects.map((project) => <tr key={project.id} onClick={() => onOpen(project)}><td><strong>{project.name}</strong><small>{isInterventionProject(project) ? ' [Intervention-only]' : `[${project.id}]`}</small></td><td>{project.sector || 'Intervention'}</td><td>{project.state || 'N/A'}</td><td>{isInterventionProject(project) ? <span className="status">N/A</span> : <RiskPill score={project.risk} />}</td><td>{isInterventionProject(project) ? <span className="status">N/A</span> : <RiskPill score={project.time} />}</td><td><span className="status">{isInterventionProject(project) ? 'Intervention-only' : project.status}</span></td></tr>)}</tbody></table></div></section>
   </>
 }
 
 function Metric({ label, value, detail, tone = '' }) { return <div className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div> }
-function ProjectRow({ project, onOpen }) { return <button className="project-row" onClick={() => onOpen(project)}><span className="priority-dot" /><span><strong>{project.name}</strong><small>{project.id} · {project.reason}</small></span><RiskPill score={project.risk} /><span className="chevron">→</span></button> }
+
+const isInterventionProject = (project) => Boolean(project && (project.sourceType === 'team_intervention' || project.isInterventionOnly))
+const hasInterventionInsight = (project) => Boolean(project && (project.problem || project.solution || project.category))
+
+const getRecommendationForProject = (project) => {
+  if (!project) return null
+  if (project.recommendation && typeof project.recommendation === 'object') {
+    return project.recommendation
+  }
+
+  const reasonText = String(project.reason || project.problem || project.challenge || project.delay_reason || '').toLowerCase()
+  const sectorText = String(project.sector || '').toLowerCase()
+  const nameText = String(project.name || '').toLowerCase()
+
+  const ruleMatches = [
+    {
+      key: 'land acquisition',
+      category: 'Land & R&R risk',
+      predicted_issue: 'Encroachment, acquisition delay, or community resistance is likely to disrupt schedules and inflate cost at the next review cycle.',
+      recommended_solution: 'Fast-track land acquisition, community engagement, and a digital compensation dashboard to reduce multi-layer approval delays.',
+      confidence: 88,
+    },
+    {
+      key: 'utility shifting',
+      category: 'Utility & site readiness risk',
+      predicted_issue: 'Utility relocation, traffic diversion, and site readiness issues are creating schedule risk across active work fronts.',
+      recommended_solution: 'Coordinate utility shifting in advance using GIS mapping, utility surveys, and night-window execution planning.',
+      confidence: 85,
+    },
+    {
+      key: 'contractor capacity',
+      category: 'Execution capacity risk',
+      predicted_issue: 'Contractor capability or resource constraints are likely to affect delivery milestones and workfront productivity.',
+      recommended_solution: 'Rebalance the work package, add performance incentives, and verify subcontractor mobilisation before the next review.',
+      confidence: 81,
+    },
+    {
+      key: 'right of way',
+      category: 'Right-of-way & approvals risk',
+      predicted_issue: 'Right-of-way approvals and local clearances are becoming the gating factor for progress on the project corridor.',
+      recommended_solution: 'Create a single clearance tracker with escalation triggers and a joint-state implementation desk for approvals.',
+      confidence: 83,
+    },
+    {
+      key: 'environment',
+      category: 'Environmental & permitting risk',
+      predicted_issue: 'Environmental clearances and habitat safeguards are creating delay risk and likely site restrictions in the next reporting cycle.',
+      recommended_solution: 'Institutionalise an environmental compliance review with proactive mitigation planning and seasonal work scheduling.',
+      confidence: 82,
+    },
+    {
+      key: 'payment',
+      category: 'Funding & payment risk',
+      predicted_issue: 'Budget flow or monetisation delays are likely to reduce execution momentum and compress delivery buffers.',
+      recommended_solution: 'Sequence cash flow milestones, enable faster disbursement controls, and build a priority capital deployment plan.',
+      confidence: 78,
+    },
+  ]
+
+  const matchedRule = ruleMatches.find((rule) => `${reasonText} ${sectorText} ${nameText}`.includes(rule.key)) || {
+    category: 'Execution risk',
+    predicted_issue: 'The project is showing a delivery risk pattern that needs a targeted mitigation plan and milestone review.',
+    recommended_solution: 'Validate the current bottleneck with site teams and deploy a focused corrective action plan before the next reporting cycle.',
+    confidence: 74,
+  }
+
+  return {
+    ...matchedRule,
+    source: 'local_rule_engine',
+    matched_project: project.name || 'project-profile',
+  }
+}
+
+function ProjectRow({ project, onOpen }) {
+  const isIntervention = isInterventionProject(project)
+  return <button className="project-row" onClick={() => onOpen(project)}><span className="priority-dot" /><span><strong>{project.name}</strong><small>{isIntervention ? 'Intervention-only · Non-PAIMANA' : `${project.id} · ${project.reason}`}</small></span>{isIntervention ? <span className="status">Intervention-only</span> : <RiskPill score={project.risk} />}<span className="chevron">→</span></button>
+}
 
 const emptyProject = { name: '', id: '', sector: 'Railways', state: '', cost: '', originalCost: '', approvalDate: '', completionDate: '', anticipatedDate: '', progress: 0, milestones: '', reason: 'Land acquisition', notes: '' }
 
@@ -475,7 +559,55 @@ function StateMap({ states, onHover }) {
 
 function Queue({ projects, onOpen }) { return <section className="panel queue-panel"><div className="queue-toolbar"><div><p className="muted">Ranked by combined predicted deterioration over the next 1–3 reports.</p></div><div className="toolbar-controls"><button className="filter">All risks ▾</button><button className="filter">All states ▾</button></div></div><div className="queue-list">{projects.map((project) => <ProjectRow key={project.id} project={project} onOpen={onOpen} />)}</div></section> }
 
-function Intelligence({ project, onSimulate, onEdit }) { return <><div className="project-hero"><div><span className="eyebrow">PROJECT ID [{project.id}] · {project.sector.toUpperCase()}</span><h2>{project.name}</h2><p>{project.state} · Updated from Monthly Flash Report, {project.updated}</p></div><div className="hero-actions"><button className="filter" onClick={onEdit}>Edit project</button><div className="hero-score"><span>OVERALL PRIORITY</span><strong>{project.risk}</strong><small>High attention</small></div></div></div><div className="dashboard-grid intelligence-grid"><section className="panel chart-panel"><div className="panel-head"><div><span className="eyebrow">PROJECT TRAJECTORY</span><h2>Cost and expenditure</h2></div><span className="legend"><i className="orange" /> Cost <i className="green" /> Expenditure</span></div><ResponsiveContainer width="100%" height={250}><AreaChart data={trend}><defs><linearGradient id="costFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d6553e" stopOpacity=".16" /><stop offset="100%" stopColor="#d6553e" stopOpacity="0" /></linearGradient></defs><CartesianGrid vertical={false} stroke="#e6e1d8" /><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#6d706b', fontSize: 11 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#9a9b95', fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="cost" stroke="#d6553e" fill="url(#costFill)" strokeWidth={2} /><Area type="monotone" dataKey="spend" stroke="#3e8a72" fill="none" strokeWidth={2} /></AreaChart></ResponsiveContainer></section><section className="panel insight-panel"><div className="panel-head"><div><span className="eyebrow">EXPLAINED WARNING</span><h2>Why this project is flagged</h2></div></div><div className="warning-box"><strong>Schedule deterioration likely</strong><span>Predicted probability <b>87%</b></span></div><ul className="reason-list"><li><b>+14.6%</b><span>Anticipated cost rose across 5 reports</span></li><li><b>2×</b><span>Completion date revised in last 6 months</span></li><li><b>−18 pts</b><span>Milestone achievement vs. similar projects</span></li></ul><button className="primary-button" onClick={onSimulate}>Run intervention scenario <span>↗</span></button></section></div><div className="detail-strip"><div><span>ANTICIPATED COST</span><strong>₹{project.cost || '12,840'} Cr</strong><small>Latest available estimate</small></div><div><span>COMPLETION DATE</span><strong>{project.anticipatedDate || 'Dec 2026'}</strong><small className="red-text">Current reported estimate</small></div><div><span>PHYSICAL PROGRESS</span><strong>{project.progress}% achieved</strong><small>Latest project observation</small></div><div><span>DELAY REASON</span><strong>{project.reason}</strong><small>Latest reported evidence</small></div></div></> }
+function Intelligence({ project, onSimulate, onEdit }) {
+  const isIntervention = isInterventionProject(project)
+  const interventionText = hasInterventionInsight(project)
+  const recommendation = getRecommendationForProject(project)
+
+  if (isIntervention) {
+    return <>
+      <div className="project-hero">
+        <div>
+          <span className="eyebrow">INTERVENTION-ONLY RECORD</span>
+          <h2>{project.name}</h2>
+          <p>Non-PAIMANA teammate intervention record</p>
+        </div>
+        <div className="hero-actions">
+          <div className="hero-score">
+            <span>DATA SOURCE</span>
+            <strong>N/A</strong>
+            <small>Non-PAIMANA</small>
+          </div>
+        </div>
+      </div>
+      {interventionText && <section className="panel insight-panel">
+        <div className="panel-head"><div><span className="eyebrow">INTERVENTION INSIGHT</span><h2>Intervention recommendation</h2></div></div>
+        <div className="warning-box"><strong>Non-PAIMANA intervention record</strong><span>This record is not an official PAIMANA observation.</span></div>
+        <ul className="reason-list">
+          {project.problem && <li><b>Problem</b><span>{project.problem}</span></li>}
+          {project.solution && <li><b>Recommended solution</b><span>{project.solution}</span></li>}
+          {project.category && <li><b>Category</b><span>{project.category}</span></li>}
+        </ul>
+      </section>}
+    </>
+  }
+
+
+  const recommendationPanel = recommendation ? (
+    <section className="panel recommendation-panel">
+      <div className="recommendation-header">
+        <div><span className="eyebrow">DECISION SUPPORT</span><h2>AI intervention recommendation</h2><p>Evidence-led guidance for the next project review.</p></div>
+        <div className="confidence-score"><span>CONFIDENCE</span><strong>{recommendation.confidence ?? 0}%</strong></div>
+      </div>
+      <div className="recommendation-category"><span>Matched category</span><strong>{recommendation.category || 'Project execution risk'}</strong></div>
+      <div className="recommendation-grid">
+        {recommendation.predicted_issue && <div className="recommendation-item"><span className="recommendation-label">Predicted issue</span><p>{recommendation.predicted_issue}</p></div>}
+        {recommendation.recommended_solution && <div className="recommendation-item recommendation-action"><span className="recommendation-label">Recommended action</span><p>{recommendation.recommended_solution}</p></div>}
+        {recommendation.matched_project && <div className="recommendation-item recommendation-evidence"><span className="recommendation-label">Evidence / matched playbook</span><p>{recommendation.matched_project}</p></div>}
+      </div>
+    </section>
+  ) : null
+  return <><div className="project-hero"><div><span className="eyebrow">PROJECT ID [{project.id}] · {project.sector.toUpperCase()}</span><h2>{project.name}</h2><p>{project.state} · Updated from Monthly Flash Report, {project.updated}</p></div><div className="hero-actions"><button className="filter" onClick={onEdit}>Edit project</button><div className="hero-score"><span>OVERALL PRIORITY</span><strong>{project.risk}</strong><small>High attention</small></div></div></div><div className="dashboard-grid intelligence-grid"><section className="panel chart-panel"><div className="panel-head"><div><span className="eyebrow">PROJECT TRAJECTORY</span><h2>Cost and expenditure</h2></div><span className="legend"><i className="orange" /> Cost <i className="green" /> Expenditure</span></div><ResponsiveContainer width="100%" height={250}><AreaChart data={trend}><defs><linearGradient id="costFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d6553e" stopOpacity=".16" /><stop offset="100%" stopColor="#d6553e" stopOpacity="0" /></linearGradient></defs><CartesianGrid vertical={false} stroke="#e6e1d8" /><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#6d706b', fontSize: 11 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#9a9b95', fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="cost" stroke="#d6553e" fill="url(#costFill)" strokeWidth={2} /><Area type="monotone" dataKey="spend" stroke="#3e8a72" fill="none" strokeWidth={2} /></AreaChart></ResponsiveContainer></section><section className="panel insight-panel"><div className="panel-head"><div><span className="eyebrow">EXPLAINED WARNING</span><h2>Why this project is flagged</h2></div></div><div className="warning-box"><strong>Schedule deterioration likely</strong><span>Predicted probability <b>87%</b></span></div><ul className="reason-list"><li><b>+14.6%</b><span>Anticipated cost rose across 5 reports</span></li><li><b>2×</b><span>Completion date revised in last 6 months</span></li><li><b>−18 pts</b><span>Milestone achievement vs. similar projects</span></li></ul><button className="primary-button" onClick={onSimulate}>Run intervention scenario <span>↗</span></button></section>{recommendationPanel}</div><div className="detail-strip"><div><span>ANTICIPATED COST</span><strong>₹{project.cost || '12,840'} Cr</strong><small>Latest available estimate</small></div><div><span>COMPLETION DATE</span><strong>{project.anticipatedDate || 'Dec 2026'}</strong><small className="red-text">Current reported estimate</small></div><div><span>PHYSICAL PROGRESS</span><strong>{project.progress}% achieved</strong><small>Latest project observation</small></div><div><span>DELAY REASON</span><strong>{project.reason}</strong><small>Latest reported evidence</small></div></div></> }
 
 function Simulator({ project, delay, increase, setDelay, setIncrease, scenarioTime, scenarioCost }) { return <><div className="simulator-head"><div><span className="eyebrow">SCENARIO LAB / {project.id}</span><h2>Test the cost of waiting</h2><p>Explore how a hypothetical intervention delay may change this project’s risk profile.</p></div><span className="decision-badge">DECISION SUPPORT ONLY</span></div><div className="sim-grid"><section className="panel controls-panel"><span className="eyebrow">ASSUMPTIONS</span><h2>Adjust the scenario</h2><label>Additional delay <output>{delay} months</output><input type="range" min="0" max="12" value={delay} onChange={(event) => setDelay(Number(event.target.value))} /></label><label>Assumed cost increase <output>{increase}%</output><input type="range" min="0" max="30" value={increase} onChange={(event) => setIncrease(Number(event.target.value))} /></label><div className="scenario-caption">Starting point: <b>{project.name}</b><br />Current score based on latest available report.</div></section><section className="panel result-panel"><span className="eyebrow">PROJECTED RESPONSE</span><h2>Risk after scenario</h2><div className="result-grid"><div><span>Cost risk</span><strong className="red-text">{scenarioCost}</strong><small>+{scenarioCost - project.risk} points</small></div><div><span>Time risk</span><strong className="amber-text">{scenarioTime}</strong><small>+{scenarioTime - project.time} points</small></div></div><div className="impact-line"><span>Estimated completion impact</span><b>+{delay} months</b></div><div className="impact-line"><span>Estimated cost impact</span><b>₹{Math.round(project.cost * increase / 100)} Cr</b></div><div className="caution">This is a modelled scenario, not a guaranteed outcome. Use it to frame intervention conversations alongside current field evidence.</div></section></div></> }
 

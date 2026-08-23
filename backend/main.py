@@ -5,6 +5,7 @@ import hmac
 import os
 import re
 import secrets
+import unicodedata
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
@@ -13,7 +14,10 @@ from urllib.request import Request as UrlRequest, urlopen
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from dotenv import load_dotenv
 from backend.risk_model import score_record, train_from_history
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 app = FastAPI(title="PAIMANA Prism API")
 app.add_middleware(
@@ -45,8 +49,13 @@ class ProjectRecord(BaseModel):
     time: int = 50
     status: str = "Watching"
     reason: str = "No delay reported"
+    challenge: str | None = None
+    problem: str | None = None
+    solution: str | None = None
+    category: str | None = None
     progress: int = 0
     updated: str = "Just now"
+    recommendation: dict | None = None
 
 
 class RiskRequest(BaseModel):
@@ -76,9 +85,189 @@ def project_store_request(command: str, value: object = None) -> object:
     return "OK"
 
 
+def normalize_project_name(value: object) -> str:
+    if value is None:
+        return ""
+    text = unicodedata.normalize("NFKD", str(value))
+    text = "".join(character for character in text if not unicodedata.combining(character))
+    text = text.lower().replace("&", " and ")
+    text = text.replace("–", " ").replace("—", " ").replace("-", " ")
+    text = text.replace("(", " ").replace(")", " ")
+    text = text.replace("[", " ").replace("]", " ")
+    text = re.sub(r"[^a-z0-9 ]+", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def teammate_intervention_path() -> Path:
+    return Path(__file__).resolve().parent.parent / "data" / "teammate_interventions.json"
+
+
+def load_teammate_interventions() -> list[dict]:
+    path = teammate_intervention_path()
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(payload, list):
+        return []
+    return [entry for entry in payload if isinstance(entry, dict)]
+
+
+def _intervention_tokens(value: object) -> set[str]:
+    if value is None:
+        return set()
+    text = unicodedata.normalize("NFKD", str(value))
+    text = "".join(character for character in text if not unicodedata.combining(character))
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9\s]+", " ", text)
+    return {token for token in text.split() if token}
+
+
+def generate_intervention_recommendation(record: dict) -> dict:
+    interventions = load_teammate_interventions()
+    project_name = str(record.get("name") or record.get("project_name") or "")
+    reason = str(record.get("reason") or record.get("delay_reason") or record.get("challenge") or record.get("problem") or "")
+    sector = str(record.get("sector") or "")
+    category = str(record.get("category") or "")
+    challenge = str(record.get("challenge") or record.get("problem") or reason)
+
+    record_tokens = _intervention_tokens(f"{project_name} {sector} {reason} {category} {challenge}")
+    best_match: dict | None = None
+    best_score = -1
+
+    for intervention in interventions:
+        if not isinstance(intervention, dict):
+            continue
+        candidate_name = str(intervention.get("project_name") or "")
+        candidate_category = str(intervention.get("category") or "")
+        candidate_problem = str(intervention.get("problem") or "")
+        candidate_solution = str(intervention.get("solution") or "")
+        candidate_tokens = _intervention_tokens(f"{candidate_name} {candidate_category} {candidate_problem} {candidate_solution}")
+        overlap = len(record_tokens & candidate_tokens)
+        score = overlap * 6
+
+        if project_name and normalize_project_name(project_name) and normalize_project_name(project_name) == normalize_project_name(candidate_name):
+            score += 40
+        if sector and candidate_category and normalize_project_name(sector) == normalize_project_name(candidate_category):
+            score += 12
+        if reason and candidate_problem:
+            reason_tokens = _intervention_tokens(reason)
+            problem_tokens = _intervention_tokens(candidate_problem)
+            score += len(reason_tokens & problem_tokens) * 4
+        if challenge and candidate_problem:
+            challenge_tokens = _intervention_tokens(challenge)
+            score += len(challenge_tokens & _intervention_tokens(candidate_problem)) * 5
+
+        if score > best_score:
+            best_score = score
+            best_match = intervention
+
+    if best_match is None:
+        fallback_problem = reason or challenge or "Execution delays, land constraint, or contract risk are emerging on the project."
+        fallback_solution = "Validate the immediate bottleneck with site teams and trigger a structured mitigation plan tailored to the project’s delivery risk."
+        return {
+            "category": category or "Project execution risk",
+            "predicted_issue": fallback_problem,
+            "recommended_solution": fallback_solution,
+            "confidence": 58,
+            "source": "rule_based_recommendation",
+            "matched_project": project_name or "project-profile",
+        }
+
+    confidence = min(96, max(62, 54 + best_score))
+    return {
+        "category": best_match.get("category") or category or "Project execution risk",
+        "predicted_issue": best_match.get("problem") or reason or challenge or "Execution risk is emerging across the project profile.",
+        "recommended_solution": best_match.get("solution") or "Validate the leading delivery bottleneck and adopt a targeted mitigation plan.",
+        "confidence": int(confidence),
+        "source": "teammate_interventions.json",
+        "matched_project": best_match.get("project_name") or project_name or "project-profile",
+    }
+
+
+def merge_teammate_interventions(records: list[dict]) -> list[dict]:
+    merged = [dict(record) for record in records if isinstance(record, dict)]
+    existing_names = {
+        normalize_project_name(record.get("name"))
+        for record in merged
+        if isinstance(record.get("name"), str) and normalize_project_name(record.get("name"))
+    }
+    intervention_seen = {
+        normalize_project_name(record.get("name"))
+        for record in merged
+        if record.get("sourceType") == "team_intervention" and isinstance(record.get("name"), str)
+    }
+
+    for entry in load_teammate_interventions():
+        project_name = entry.get("project_name")
+        project_key = normalize_project_name(project_name)
+        if not project_key:
+            continue
+
+        already_matched = False
+        for index, record in enumerate(merged):
+            record_name = record.get("name")
+            if not isinstance(record_name, str):
+                continue
+            if normalize_project_name(record_name) != project_key:
+                continue
+            if record.get("sourceType") == "team_intervention":
+                continue
+            merged[index] = {
+                **record,
+                "category": entry.get("category", record.get("category")),
+                "problem": entry.get("problem", record.get("problem")),
+                "solution": entry.get("solution", record.get("solution")),
+                "sourceType": "existing_project",
+                "interventionSource": "teammate_interventions.json",
+                "isInterventionOnly": False,
+            }
+            existing_names.add(project_key)
+            already_matched = True
+            break
+
+        if already_matched:
+            continue
+
+        if project_key in intervention_seen:
+            continue
+
+        intervention_record = {
+            "id": f"intervention-{project_key.replace(' ', '-') or 'project'}",
+            "name": project_name,
+            "category": entry.get("category"),
+            "problem": entry.get("problem"),
+            "solution": entry.get("solution"),
+            "sourceType": "team_intervention",
+            "interventionSource": "teammate_interventions.json",
+            "isInterventionOnly": True,
+            "status": "Intervention recommendation",
+            "sector": "",
+            "state": "",
+            "cost": 0,
+            "risk": 0,
+            "time": 0,
+            "progress": 0,
+            "updated": "Not available",
+        }
+        merged.append(intervention_record)
+        intervention_seen.add(project_key)
+
+    if len(merged) != len(records):
+        project_store_request("json.set", merged)
+    return merged
+
+
 def saved_projects() -> list[dict]:
     result = project_store_request("json.get")
-    return result if isinstance(result, list) else []
+    records = result if isinstance(result, list) else []
+    merged = merge_teammate_interventions(records)
+    if merged != records:
+        project_store_request("json.set", merged)
+    return merged
 
 
 def admin_accounts() -> dict[str, str]:
@@ -269,7 +458,9 @@ def update_project(project_id: str, project: ProjectRecord, request: Request) ->
 @app.post("/api/risk/score")
 def risk_score(payload: RiskRequest, request: Request) -> dict:
     require_session(request)
-    return score_record(payload.record, payload.history)
+    result = score_record(payload.record, payload.history)
+    result["recommendation"] = generate_intervention_recommendation(payload.record)
+    return result
 
 
 @app.post("/api/risk/train")
