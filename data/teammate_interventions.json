@@ -1,0 +1,602 @@
+[
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Mumbai–Ahmedabad High-Speed Rail Corridor",
+    "problem": "Complex land acquisition in urban stretches and lengthy sea-tunnel engineering under Thane Creek.",
+    "solution": "Deploy automated micro-tunneling TBMs and use unified digital land-compensation portals."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Delhi–Meerut Regional Rapid Transit System (RRTS)",
+    "problem": "Densely populated corridor management during overhead girder launching.",
+    "solution": "Pre-cast modular elevated segments off-site and assemble using nocturnal traffic diversions."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Bengaluru–Hyderabad High-Speed Rail Corridor",
+    "problem": "Cross-border inter-state land allocation and right-of-way disputes.",
+    "solution": "Establish a joint SPV (Special Purpose Vehicle) between Karnataka and Telangana for unified acquisition."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Diamond Quadrilateral High-Speed Rail Network",
+    "problem": "Massive capital expenditure requirements across four ultra-long corridors.",
+    "solution": "Phase construction into high-density priority loops backed by hybrid annuity models (HAM)."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Western Dedicated Freight Corridor (WDFC)",
+    "problem": "Utility shifting (high-voltage power lines and pipelines) delaying tracks.",
+    "solution": "Integrate PM Gati Shakti 3D GIS mapping to coordinate early utility realignments."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Eastern Dedicated Freight Corridor (EDFC)",
+    "problem": "Encroachment issues along legacy railway alignments in heavy industrial pockets.",
+    "solution": "Build elevated viaduct sections over congested urban/industrial stretches."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Chennai–Bengaluru High-Speed Rail Corridor",
+    "problem": "Traversing forest patches and eco-sensitive wildlife corridors near Eastern Ghats.",
+    "solution": "Construct elevated eco-bridges and noise-barrier tunnels for wildlife protection."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Silver Line Semi High-Speed Rail (Kerala)",
+    "problem": "Public opposition over land fragmentation and fear of environmental disruption.",
+    "solution": "Pivot to an elevated viaduct/embankment hybrid model with higher local compensation packages."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Bilaspur–Manali–Leh Railway Line",
+    "problem": "Extreme high-altitude terrain, seismic hazards, and severe winter freezing conditions.",
+    "solution": "Utilize specialized mountain-tunneling rock-burst prevention technologies and heated track switches."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Rishikesh–Karnaprayag Railway Line",
+    "problem": "Fragile Himalayan geology leading to tunnel cave-ins and water ingress.",
+    "solution": "Implement New Austrian Tunneling Method (NATM) with real-time seismic sensors."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Bairabi–Sairang Rail Line (Mizoram)",
+    "problem": "Monsoon-triggered landslides and limited seasonal construction windows.",
+    "solution": "Stabilize slopes using heavy shotcreting, rock-bolting, and geo-synthetic reinforced walls."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Jiribam–Imphal Rail Project (Manipur)",
+    "problem": "Security concerns and logistical bottlenecks in transporting heavy rail bridge girders.",
+    "solution": "Build modular pre-fabricated bridge decks assembled using heavy-lift cranes locally."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Dimapur–Kohima Rail Project (Nagaland)",
+    "problem": "Complex hilly topography and customary land-ownership disputes.",
+    "solution": "Partner with local tribal councils to structure long-term community lease frameworks."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Sevoke–Rangpo Rail Line (Sikkim)",
+    "problem": "Environmental concerns in Mahananda Wildlife Sanctuary.",
+    "solution": "Construct deep underground tunnels using silent non-explosive TBM excavation."
+  },
+  {
+    "category": "Transport & High-Speed Rail",
+    "project_name": "Mumbai Suburban Railway Upgradation (MUTP Phase 3A)",
+    "problem": "Executing upgrades without disrupting daily suburban commuter train schedules.",
+    "solution": "Execute track-laying and signaling shifts exclusively during night block hours."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Bharatmala Pariyojana (Phase I & II)",
+    "problem": "Financial stress among concessionaires due to delayed tolling monetization.",
+    "solution": "Transition to InvITs (Infrastructure Investment Trusts) for early capital recycling."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Delhi–Mumbai Expressway",
+    "problem": "Wildlife corridor disruptions through Ranthambore and Mukundra Hills.",
+    "solution": "Build dedicated underpasses and overpasses designed specifically as animal bridges."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Varanasi–Kolkata Expressway",
+    "problem": "Acquiring fertile agricultural land across multiple agrarian districts.",
+    "solution": "Offer pooled land shareholding options in adjacent logistics hubs."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Bengaluru–Chennai Expressway",
+    "problem": "Soft clay soil subgrades along low-lying agricultural stretches.",
+    "solution": "Treat subgrades with lime-cement stabilization and high-tensile geotextiles."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Ganga Expressway (Meerut to Prayagraj)",
+    "problem": "Flood plain alignment issues along the Ganga River during monsoons.",
+    "solution": "Elevate embankments and install high-capacity culverts with anti-scour protection."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Samruddhi Mahamarg Phase Extension (Nagpur to Mumbai)",
+    "problem": "Deep rock cuttings and slope instability near Igatpuri ghats.",
+    "solution": "Install high-tensile steel wire mesh netting and anchored slope retention bolts."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Amritsar–Jamnagar Economic Corridor",
+    "problem": "Severe dust storms and extreme heat damaging pavement layers in desert zones.",
+    "solution": "Use polymer-modified bitumen suited for high-temperature resistance."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Raipur–Visakhapatnam Economic Corridor",
+    "problem": "Dense forest clearing approvals and Naxalite-sensitive corridor security.",
+    "solution": "Deploy central armed police protection and expedite compensatory afforestation clearances."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Bundelkhand Expressway Expansion",
+    "problem": "Monsoon erosion on newly constructed bridge approach roads.",
+    "solution": "Plant vetiver grass and lay geo-mats along approach slopes for soil retention."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Trans-Arunachal Highway",
+    "problem": "Unstable mountain slopes causing frequent rockfalls and road washes.",
+    "solution": "Construct permanent gallery structures and anchored retaining walls."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Arunachal Frontier Highway",
+    "problem": "Extreme remoteness and lack of local raw material/cement batching plants.",
+    "solution": "Set up mobile modular crushing units and field cement batching systems."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Surat–Chennai Expressway",
+    "problem": "Right-of-way bottlenecks through industrial corridors in Western India.",
+    "solution": "Use vertical retaining wall designs to narrow required right-of-way land width."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Gorakhpur Link Expressway",
+    "problem": "High seasonal water tables and waterlogging in Eastern UP plains.",
+    "solution": "Build high-grade embankment heights integrated with automatic drainage sluices."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Chambal Progressway (Atal Progressway)",
+    "problem": "Environmental clearances due to proximity to National Chambal Sanctuary.",
+    "solution": "Shift alignment to non-forest wasteland along the ravine borders."
+  },
+  {
+    "category": "Expressways & National Highways",
+    "project_name": "Zoji-la & Z-Morh Tunnel Corridors",
+    "problem": "Sub-zero temperatures causing equipment failure and concrete curing delays.",
+    "solution": "Use winter-grade anti-freeze concrete admixtures and heated tunnel ventilation."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Delhi Metro Phase IV Expansion",
+    "problem": "Navigating ultra-dense residential zones without damaging old building foundations.",
+    "solution": "Deploy Earth Pressure Balance (EPB) TBMs equipped with real-time settlement sensors."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Mumbai Metro Line 3 (Aqua Line) & Extensions",
+    "problem": "Under-river and coastal water seepage into deep underground stations.",
+    "solution": "Apply multi-layered waterproof membranes and high-pressure chemical grouting."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Namma Metro Phase 2A & 2B (Bengaluru Airport Line)",
+    "problem": "Utility shifting (water mains, high-voltage lines) along Outer Ring Road.",
+    "solution": "Create utility trenches parallel to viaducts managed via single utility mapping."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Chennai Metro Phase II",
+    "problem": "Tunneling through mixed-ground geology (hard rock transitioning to soft clay).",
+    "solution": "Deploy dual-mode slurry/EPB Tunnel Boring Machines."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Kolkata Metro East-West & Yellow Line Extensions",
+    "problem": "Aquifer disruptions causing subsidence in heritage urban structures.",
+    "solution": "Perform ground-freezing techniques and continuous structural monitoring."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Pune Metro Phase I Expansion & Line 3",
+    "problem": "Narrow urban road widths creating severe traffic bottlenecks during construction.",
+    "solution": "Use pre-fabricated steel piers to reduce the required construction foot-print."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Surat Metro Phase I",
+    "problem": "Navigating historic textile/diamond market districts with tight curves.",
+    "solution": "Utilize sharp-radius articulated rolling stock and elevated single-column piers."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Ahmedabad Metro Phase II",
+    "problem": "River crossing engineering across Sabarmati River.",
+    "solution": "Erect balanced cantilever bridge girders with minimal riverbed pier footprints."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Kochi Metro Phase II & Water Metro Expansion",
+    "problem": "Silting in tidal channels disrupting electric boat docking operations.",
+    "solution": "Deploy eco-dredgers and construct dynamic floating jetty pontoons."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Patna Metro Rail Project",
+    "problem": "High density underground archeological strata and heritage site protection.",
+    "solution": "Use Ground Penetrating Radar (GPR) before excavation to adjust alignment."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Kanpur Metro Phase I Corridor 2",
+    "problem": "High traffic density near Kanpur Central railway hub.",
+    "solution": "Construct station concourses using top-down cut-and-cover excavation."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Agra Metro Rail Project",
+    "problem": "Environmental restrictions near Taj Mahal Eco-Sensitive Zone.",
+    "solution": "Deploy electric-powered construction machinery and zero-dust water misting."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Bhopal & Indore Metro Projects",
+    "problem": "Delays in depot land finalization.",
+    "solution": "Optimize depot layout footprints using multi-level stabling yards."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Nagpur Metro Phase II",
+    "problem": "Integrating suburban metro feeders with existing Indian Railways tracks.",
+    "solution": "Construct integrated multi-modal interchanges with direct skywalk links."
+  },
+  {
+    "category": "Metro Mass Rapid Transit",
+    "project_name": "Jammu & Srinagar Metro Projects",
+    "problem": "Extreme cold weather and security-related access restrictions.",
+    "solution": "Pre-fabricate all station modules off-site in controlled factory settings."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Navi Mumbai International Airport (DB Patil)",
+    "problem": "River diversion (Ulwe River) and hill blasting/leveling work.",
+    "solution": "Re-engineer natural drainage channels with concrete lined banks and terraced blasting."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Noida International Airport (Jewar)",
+    "problem": "Managing multi-phase expansion while keeping initial commercial flights operational.",
+    "solution": "Modular master-planning separating active flight operations from future construction zones."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Bhogapuram International Airport (Visakhapatnam)",
+    "problem": "Coastal corrosion on runway lighting and navigational radar systems.",
+    "solution": "Install marine-grade anti-corrosive coatings and stainless-steel electrical fittings."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Dholera Greenfield Airport (Gujarat)",
+    "problem": "High salinity soil conditions causing foundation degradation.",
+    "solution": "Use sulfate-resistant cement and deep soil replacement techniques."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Rajkot Greenfield Airport Expansion",
+    "problem": "Connectivity delays between new airport location and inner city.",
+    "solution": "Build a dedicated 6-lane access express corridor linked directly to NH-27."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Purandar International Airport (Pune)",
+    "problem": "Local farmer resistance regarding land pooling models.",
+    "solution": "Revise compensation packages to include direct employment guarantees in airport logistics parks."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Warangal Airport Modernization",
+    "problem": "Runway length restrictions due to surrounding rail tracks.",
+    "solution": "Acquire adjacent vacant land and build elevated runway threshold extensions."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Mopa Airport Connectivity Phase 2 (Goa)",
+    "problem": "Hilly terrain causing road slip hazard during coastal monsoon downpours.",
+    "solution": "Construct elevated expressway link structures over fragile hillside terrain."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Great Nicobar International Airport",
+    "problem": "Severe logistical isolation for transporting heavy construction equipment and aggregate.",
+    "solution": "Establish a dedicated maritime supply chain barge network from mainland ports."
+  },
+  {
+    "category": "Airports & Aviation",
+    "project_name": "Ayodhya Maharishi Valmiki Airport Phase II",
+    "problem": "Rapid tourist surge outstripping small initial terminal capacity.",
+    "solution": "Fast-track modular steel terminal frame extensions."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Vadhavan Mega Port Project (Maharashtra)",
+    "problem": "Local fishermen protests regarding impact on coastal marine ecology.",
+    "solution": "Create an offshore land-reclaimed port design with dedicated marine compensation funds."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Great Nicobar Transshipment Port (Galathea Bay)",
+    "problem": "High seismic activity zone and tsunami risk in deep ocean area.",
+    "solution": "Construct heavy-duty rubble-mound breakwaters engineered with seismic dampeners."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Vizhinjam International Transshipment Port",
+    "problem": "Shortage of granite rock for breakwater construction during monsoons.",
+    "solution": "Source rock materials from certified inland quarries using dedicated freight trains."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Sagarmala Programme Port Modernization",
+    "problem": "Last-mile rail and road port-connectivity bottlenecks.",
+    "solution": "Establish dedicated Port Rail Corporations to fast-track port-rail links."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Inland Waterways Development (NW-1 Ganga)",
+    "problem": "Low seasonal draft levels preventing heavy barge navigation during summers.",
+    "solution": "Deploy smart maintenance dredging and install automated river training structures."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Paradip Port Outer Harbour Expansion",
+    "problem": "High coastal siltation choking entry channels.",
+    "solution": "Deploy continuous trailing suction hopper dredgers (TSHD)."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Deendayal Port (Kandla) Smart Port Upgrade",
+    "problem": "Cyber security vulnerabilities in legacy automated port terminal systems.",
+    "solution": "Deploy air-gapped terminal operating systems with localized cloud backups."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Tuticorin Deep Water Outer Harbour",
+    "problem": "Coral reef proximity causing marine EIA delays.",
+    "solution": "Execute artificial coral reef transplantation prior to dredging work."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "Kakinada Gateway Port",
+    "problem": "Cyclonic weather disruptions damaging shore infrastructure.",
+    "solution": "Build high-crested protective breakwaters and storm-resistant gantry cranes."
+  },
+  {
+    "category": "Ports, Maritime & Waterways",
+    "project_name": "JNPT Fourth Container Terminal Phase II",
+    "problem": "Yard congestion during peak vessel arrival times.",
+    "solution": "Automate yard cranes (e-RTGs) and integrate optical character recognition (OCR) gate systems."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Khavda Renewable Energy Park (30 GW, Gujarat)",
+    "problem": "Severe sandstorms coating solar panels and reducing power generation efficiency.",
+    "solution": "Deploy robotic waterless dry-cleaning drone systems."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Khavda-Bhuj Power Transmission Grid System",
+    "problem": "Transmitting high-voltage power over soft salt-flat desert soil (Rann of Kutch).",
+    "solution": "Engineer pile-driven deep tower foundations treated with salt-corrosion inhibitors."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Kudankulam Nuclear Power Plant (Units 3 to 6)",
+    "problem": "Supply-chain disruptions for imported specialized reactor components.",
+    "solution": "Expand domestic manufacturing of nuclear-grade components under Make in India."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Jaitapur Nuclear Power Project",
+    "problem": "Local opposition regarding nuclear safety concerns.",
+    "solution": "Conduct open community outreach and publish third-party seismic/radiation audits."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Gorakhpur Haryana Anu Vidyut PProject",
+    "problem": "Sourcing high volumes of cooling water in an inland region.",
+    "solution": "Draw treated wastewater from nearby canals using dedicated closed-loop pipelines."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Green Hydrogen Mission Infrastructure",
+    "problem": "Extremely high capital cost of imported electrolyzers.",
+    "solution": "Offer PLI (Production Linked Incentives) to stimulate domestic electrolyzer plants."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Ultra Mega Solar Parks (Rajasthan/MP)",
+    "problem": "Grid curtailment due to power generation surges during peak sunlight.",
+    "solution": "Integrate co-located Battery Energy Storage Systems (BESS) into grid substations."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Upper Siang Hydroelectric Project (Arunachal)",
+    "problem": "Submergence fears among indigenous communities downstream.",
+    "solution": "Redesign dam heights into a cascade model to lower peak reservoir water levels."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Dibang Multipurpose Hydroelectric Project",
+    "problem": "High risk of flash floods during river diversion stage.",
+    "solution": "Construct high-capacity diversion tunnels engineered for maximum flood volumes."
+  },
+  {
+    "category": "Energy, Renewable & Nuclear Power",
+    "project_name": "Subansiri Lower Hydroelectric Project",
+    "problem": "Landslides blocking access roads and damaging dam abutments.",
+    "solution": "Execute heavy slope anchoring and bio-engineering on fragile hill faces."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Dholera Special Investment Region (SIR)",
+    "problem": "Attracting anchor manufacturing tenants to a newly developed greenfield location.",
+    "solution": "Provide tax incentives and plug-and-play ready utility land parcels."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "GIFT City Expansion Phase II (Gujarat)",
+    "problem": "High real estate commercial costs limiting startup entry.",
+    "solution": "Allocate dedicated co-working incubators and sub-leased tech park zones."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Smart Cities Mission Infrastructure Upgrades",
+    "problem": "Legacy municipal bodies lacking digital skills to operate Command & Control Centers.",
+    "solution": "Embed private system integrators for multi-year operations and staff training."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Jal Jeevan Mission (Rural Network Expansion)",
+    "problem": "Depleting groundwater tables in drought-prone operational districts.",
+    "solution": "Mandatory coupling of tap-water projects with village rainwater harvesting ponds."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Namami Gange Programme Phase II",
+    "problem": "Uncontrolled industrial discharge breaking through municipal sewage treatment plants.",
+    "solution": "Install online continuous effluent monitoring sensors directly at factory outlets."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Mumbai Coastal Road Project (North Extension)",
+    "problem": "Severe traffic congestion at interchange connection points.",
+    "solution": "Construct grade-separated flyovers and smart traffic signal synchronization."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Thane–Borivali Twin Tunnel Project",
+    "problem": "Excavating deep underground tunnels directly beneath Sanjay Gandhi National Park.",
+    "solution": "Use advanced low-vibration TBMs to avoid disturbing surface fauna and hydrology."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Goregaon–Mulund Link Road Tunnel",
+    "problem": "High groundwater pressure causing tunnel lining leakage.",
+    "solution": "Install high-strength gasket-sealed precast concrete tunnel segments."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Kalpasar Project (Gulf of Khambhat)",
+    "problem": "Silt deposition inside the world's largest proposed freshwater gulf reservoir.",
+    "solution": "Build automated silt-flushing sluice gates along the main tidal dam."
+  },
+  {
+    "category": "Urban, Smart Cities & Water Infrastructure",
+    "project_name": "Ken-Betwa River Interlinking Project",
+    "problem": "Submergence of tiger habitat area in Panna Tiger Reserve.",
+    "solution": "Create an expanded compensatory national park corridor with mandatory afforestation."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "National Industrial Corridor Development Program",
+    "problem": "Slow land handover by individual participating state governments.",
+    "solution": "Mandate state equity contributions via fully encumbrance-free land parcels."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Delhi–Mumbai Industrial Corridor (DMIC) Phase II",
+    "problem": "High freight transit costs between inland nodes and coastal ports.",
+    "solution": "Fast-track direct spur rail connections to Dedicated Freight Corridors."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Bengaluru–Mumbai Industrial Corridor (BMIC)",
+    "problem": "Water scarcity for heavy industrial processing plants along the dry belt.",
+    "solution": "Build long-distance treated municipal wastewater pipelines from nearby metros."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Chennai–Bengaluru Industrial Corridor (CBIC)",
+    "problem": "Freight bottlenecks along connecting national highways.",
+    "solution": "Build dedicated freight-only truck lanes along the CBIC expressway node."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Amritsar–Kolkata Industrial Corridor (AKIC)",
+    "problem": "Land fragmentation across densely populated Gangetic plains.",
+    "solution": "Acquire smaller, compact multi-modal logistics parks instead of sprawling mega-zones."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Tata-Pegatron Semiconductor Fab Facility (Dholera)",
+    "problem": "Need for uninterrupted 100% ultra-pure water and uninterrupted zero-flicker power.",
+    "solution": "Build dedicated dual-redundant power lines and ultra-filtration water treatment units."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Micron Semiconductor Testing Plant (Sanand)",
+    "problem": "Shortage of specialized precision micro-electronics technicians.",
+    "solution": "Establish semiconductor-focused training curricula in local technical institutes."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Foxconn Electronics Hubs (TN & Telangana)",
+    "problem": "Managing high-density dorm accommodation and transit for thousands of workers.",
+    "solution": "Build self-contained industrial housing campuses with integrated amenities."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Chakan MIDC Infrastructure Modernization (Pune)",
+    "problem": "Massive daily truck traffic gridlock on narrow internal MIDC industrial roads.",
+    "solution": "Widen arterial roads, build heavy-vehicle parking bays, and enforce strict dispatch schedules."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Hinjewadi IT Park Connectivity Expansion",
+    "problem": "Extreme peak-hour commuter congestion into the IT precinct.",
+    "solution": "Expedite the Pune Metro Line 3 elevated link and add dedicated feeder busways."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Tamil Nadu Defense Industrial Corridor",
+    "problem": "High initial testing and certification costs for private aerospace defense MSMEs.",
+    "solution": "Set up shared defense testing facilities funded by central/state grants."
+  },
+  {
+    "category": "Industrial, Tech Parks & Manufacturing",
+    "project_name": "Uttar Pradesh Defense Industrial Corridor",
+    "problem": "Attracting specialized defense supply-chain vendors to regional nodes (e.g., Jhansi).",
+    "solution": "Offer upfront capital subsidies and anchor procurement commitments from defense PSUs."
+  },
+  {
+    "category": "Border Security & Strategic Infrastructure",
+    "project_name": "Border Infrastructure Development Scheme (BRO)",
+    "problem": "Working in extreme remote zones with short 4-month snow-free construction windows.",
+    "solution": "Pre-position machinery and deploy rapid-setting cold-weather concrete technologies."
+  },
+  {
+    "category": "Border Security & Strategic Infrastructure",
+    "project_name": "Shinku La Pass Tunnel (Himachal–Ladakh)",
+    "problem": "Severe avalanche hazards at tunnel portal entrance zones.",
+    "solution": "Erect heavy avalanche snow-shed structures and automated snow-deflection barriers."
+  },
+  {
+    "category": "Border Security & Strategic Infrastructure",
+    "project_name": "Border Outpost Fiber Network Expansion",
+    "problem": "Physical cable snapping caused by landslides and rugged mountain terrain.",
+    "solution": "Deploy armored self-healing ring-topology optical fiber cables paired with satellite backups."
+  }
+]
