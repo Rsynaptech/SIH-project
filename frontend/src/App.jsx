@@ -129,7 +129,10 @@ function Dashboard({ onLogout }) {
 
   useEffect(() => {
     const loadProjects = () => fetch('/api/projects', { credentials: 'include' })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('API unavailable')))
+      .then((response) => {
+        if (response.status === 401) { onLogout(); throw new Error('Session expired') }
+        return response.ok ? response.json() : Promise.reject(new Error('API unavailable'))
+      })
       .then((saved) => {
         const combined = [...saved, ...loadLocalProjects().filter((item) => !saved.some((project) => project.id === item.id))]
         setPortfolioProjects([...combined, ...projects.filter((project) => !combined.some((item) => item.id === project.id))])
@@ -141,7 +144,7 @@ function Dashboard({ onLogout }) {
     loadProjects()
     const refreshTimer = window.setInterval(loadProjects, 15000)
     return () => window.clearInterval(refreshTimer)
-  }, [])
+  }, [onLogout])
 
   const openProject = (project) => { setSelected(project); setView('intelligence') }
   const exportBrief = () => {
@@ -312,7 +315,7 @@ function Dashboard({ onLogout }) {
         {view === 'queue' && <Queue projects={portfolioProjects} onOpen={openProject} />}
         {view === 'intelligence' && <Intelligence project={selected} onSimulate={() => setView('simulator')} />}
         {view === 'simulator' && <Simulator project={selected} delay={delay} increase={increase} setDelay={setDelay} setIncrease={setIncrease} scenarioTime={scenarioTime} scenarioCost={scenarioCost} />}
-        {view === 'add-project' && <AddProject addedProjects={portfolioProjects.filter((project) => !projects.some((base) => base.id === project.id))} onAdd={async (project) => { const response = await fetch('/api/projects', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(project) }); if (response.status === 401) throw new Error('Your admin session expired. Please log in again.'); if (!response.ok) { const saved = [...loadLocalProjects().filter((item) => item.id !== project.id), project]; saveLocalProjects(saved); } setPortfolioProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]) }} />}
+        {view === 'add-project' && <AddProject addedProjects={portfolioProjects.filter((project) => !projects.some((base) => base.id === project.id))} onAdd={async (project) => { const response = await fetch('/api/projects', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(project) }); if (response.status === 401) { onLogout(); throw new Error('Your admin session expired. Please log in again.') } if (!response.ok) { const saved = [...loadLocalProjects().filter((item) => item.id !== project.id), project]; saveLocalProjects(saved); } setPortfolioProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]) }} />}
       </main>
     </div>
   )
