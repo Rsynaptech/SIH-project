@@ -64,6 +64,16 @@ const buildDashboardStateData = (projectList) => {
   return { source: 'PAIMANA Prism dashboard demonstration records', freeze_month: 'Mar 2025', national_total, states, stale: false }
 }
 
+const mergeAddedProjectsIntoStates = (official, projectList) => {
+  if (!official?.states) return buildDashboardStateData(projectList)
+  const states = official.states.map((state) => ({ ...state }))
+  projectList.forEach((project) => {
+    const match = states.find((state) => stateKey(state.StateName) === stateKey(project.state))
+    if (match) match.ProjectCount = (Number(match.ProjectCount) || 0) + 1
+  })
+  return { ...official, states }
+}
+
 function RiskPill({ score }) {
   return <span className={`risk-pill ${score >= 75 ? 'critical' : score >= 55 ? 'watch' : 'stable'}`}>{score}</span>
 }
@@ -78,7 +88,7 @@ function App() {
       .catch(() => setAuthenticated(false))
   }, [])
 
-  if (authenticated === null) return <div className="auth-loading">Checking secure session...</div>
+  if (authenticated === null) return <div className="auth-loading">Checking access...</div>
   if (!authenticated) return <Login onAuthenticated={() => setAuthenticated(true)} />
   return <Dashboard onLogout={() => setAuthenticated(false)} />
 }
@@ -112,10 +122,13 @@ function Dashboard({ onLogout }) {
   const [view, setView] = useState('overview')
   const [selected, setSelected] = useState(projects[0])
   const [portfolioProjects, setPortfolioProjects] = useState(projects)
+  const [officialPaimana, setOfficialPaimana] = useState(null)
+  const [editingProject, setEditingProject] = useState(null)
   const [delay, setDelay] = useState(3)
   const [increase, setIncrease] = useState(10)
-  const paimanaData = buildDashboardStateData(portfolioProjects)
-  const paimanaError = ''
+  const adminProjects = portfolioProjects.filter((project) => !projects.some((base) => base.id === project.id))
+  const paimanaData = officialPaimana ? mergeAddedProjectsIntoStates(officialPaimana, adminProjects) : null
+  const paimanaError = officialPaimana === null ? 'Loading official PAIMANA state data...' : ''
 
   const loadLocalProjects = () => {
     try {
@@ -128,6 +141,10 @@ function Dashboard({ onLogout }) {
   const saveLocalProjects = (saved) => window.localStorage.setItem('paimana-projects', JSON.stringify(saved))
 
   useEffect(() => {
+    fetch('/api/paimana/states', { credentials: 'include' })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Official PAIMANA data unavailable')))
+      .then((data) => setOfficialPaimana(data))
+      .catch(() => setOfficialPaimana({ states: [], national_total: null, source: 'PAIMANA unavailable', stale: true }))
     const loadProjects = () => fetch('/api/projects', { credentials: 'include' })
       .then((response) => {
         if (response.status === 401) { onLogout(); throw new Error('Session expired') }
@@ -147,6 +164,7 @@ function Dashboard({ onLogout }) {
   }, [onLogout])
 
   const openProject = (project) => { setSelected(project); setView('intelligence') }
+  const editProject = (project) => { setEditingProject(project); setView('edit-project') }
   const exportBrief = () => {
     const official = paimanaData?.national_total
     const lines = [
@@ -313,20 +331,24 @@ function Dashboard({ onLogout }) {
 
         {view === 'overview' && <Overview projects={portfolioProjects} onOpen={openProject} paimanaData={paimanaData} paimanaError={paimanaError} />}
         {view === 'queue' && <Queue projects={portfolioProjects} onOpen={openProject} />}
-        {view === 'intelligence' && <Intelligence project={selected} onSimulate={() => setView('simulator')} />}
+        {view === 'intelligence' && <Intelligence project={selected} onSimulate={() => setView('simulator')} onEdit={() => editProject(selected)} />}
         {view === 'simulator' && <Simulator project={selected} delay={delay} increase={increase} setDelay={setDelay} setIncrease={setIncrease} scenarioTime={scenarioTime} scenarioCost={scenarioCost} />}
         {view === 'add-project' && <AddProject addedProjects={portfolioProjects.filter((project) => !projects.some((base) => base.id === project.id))} onAdd={async (project) => { const response = await fetch('/api/projects', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(project) }); if (response.status === 401) { onLogout(); throw new Error('Your admin session expired. Please log in again.') } if (!response.ok) { const saved = [...loadLocalProjects().filter((item) => item.id !== project.id), project]; saveLocalProjects(saved); } setPortfolioProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]) }} />}
+        {view === 'edit-project' && <AddProject initialProject={editingProject} onCancel={() => setView('intelligence')} addedProjects={portfolioProjects.filter((project) => !projects.some((base) => base.id === project.id))} onAdd={async (project) => { const response = await fetch(`/api/projects/${project.id}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(project) }); if (response.status === 401) { onLogout(); throw new Error('Your admin session expired. Please log in again.') } if (!response.ok) { const saved = [...loadLocalProjects().filter((item) => item.id !== project.id), project]; saveLocalProjects(saved); } setPortfolioProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]); setSelected(project); setView('intelligence') }} />}
       </main>
     </div>
   )
 }
 
 function Overview({ projects, onOpen, paimanaData, paimanaError }) {
+  const official = paimanaData?.national_total
+  const projectCount = Number(official?.ProjectCount) || null
+  const costGrowth = official?.ProjectCost ? Math.round(((Number(official.RevisedCost) - Number(official.ProjectCost)) / Number(official.ProjectCost)) * 100) : 0
   return <>
-    <div className="hero-line"><div><p className="muted">A forward-looking view of infrastructure delivery health.</p><div className="data-badge">● SYNTHETIC DEMO RECORDS · REPLACE WITH VERIFIED PAIMANA EXTRACTS</div></div><span className="period">APR 2024 — MAR 2025 <i>12 months</i></span></div>
-    <section className="metric-grid"><Metric label="Monitored projects" value="184" detail="+12 this period" /><Metric label="High cost risk" value="18" detail="9.8% of portfolio" tone="red" /><Metric label="High time risk" value="27" detail="14.7% of portfolio" tone="amber" /><Metric label="Priority attention" value="12" detail="6 need action today" tone="ink" /></section>
+    <div className="hero-line"><div><p className="muted">A forward-looking view of infrastructure delivery health.</p><div className="data-badge">● OFFICIAL PAIMANA STATE SUMMARY · LIVE FETCH</div></div><span className="period">{paimanaData?.freeze_month || 'LOADING REPORT'} <i>official data</i></span></div>
+    <section className="metric-grid"><Metric label="Official monitored projects" value={projectCount === null ? '—' : officialNumber(projectCount)} detail={official ? 'PAIMANA state summary' : 'Official data unavailable'} /><Metric label="Original portfolio cost" value={official ? `₹${officialNumber(official.ProjectCost)} Cr` : '—'} detail={official ? 'Official PAIMANA' : 'Official data unavailable'} tone="red" /><Metric label="Latest revised cost" value={official ? `₹${officialNumber(official.RevisedCost)} Cr` : '—'} detail={official ? `${costGrowth >= 0 ? '+' : ''}${costGrowth}% vs original` : 'Official data unavailable'} tone="amber" /><Metric label="Completed this month" value={official ? officialNumber(official.CompletedProject) : '—'} detail={official ? 'Official PAIMANA' : 'Official data unavailable'} tone="ink" /></section>
     <div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-head"><div><span className="eyebrow">EXPOSURE BY SECTOR</span><h2>Risk concentration</h2></div><span className="legend"><i /> Avg. risk score</span></div><ResponsiveContainer width="100%" height={240}><BarChart data={sectorData} margin={{ top: 20, right: 10, left: -25, bottom: 0 }}><CartesianGrid vertical={false} stroke="#e6e1d8" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6d706b', fontSize: 12 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#9a9b95', fontSize: 11 }} /><Tooltip cursor={{ fill: '#f4f0e8' }} /><Bar dataKey="risk" fill="#d6553e" radius={[3, 3, 0, 0]} barSize={38} /></BarChart></ResponsiveContainer></section><section className="panel attention-panel"><div className="panel-head"><div><span className="eyebrow">ACTION REQUIRED</span><h2>Priority projects</h2></div><button className="text-button" onClick={() => onOpen(projects[0])}>View queue →</button></div>{projects.slice(0, 3).map((project) => <ProjectRow key={project.id} project={project} onOpen={onOpen} />)}</section></div>
-    <StateProjects paimanaData={paimanaData} paimanaError={paimanaError} />
+    <StateProjects projects={projects} paimanaData={paimanaData} paimanaError={paimanaError} />
     <section className="panel table-panel"><div className="panel-head"><div><span className="eyebrow">PORTFOLIO PULSE</span><h2>Latest project signals</h2></div><button className="filter">All sectors ▾</button></div><div className="table-wrap"><table><thead><tr><th>Project</th><th>Sector</th><th>State</th><th>Cost risk</th><th>Time risk</th><th>Status</th></tr></thead><tbody>{projects.map((project) => <tr key={project.id} onClick={() => onOpen(project)}><td><strong>{project.name}</strong><small>[{project.id}]</small></td><td>{project.sector}</td><td>{project.state}</td><td><RiskPill score={project.risk} /></td><td><RiskPill score={project.time} /></td><td><span className="status">{project.status}</span></td></tr>)}</tbody></table></div></section>
   </>
 }
@@ -336,15 +358,15 @@ function ProjectRow({ project, onOpen }) { return <button className="project-row
 
 const emptyProject = { name: '', id: '', sector: 'Railways', state: '', cost: '', originalCost: '', approvalDate: '', completionDate: '', anticipatedDate: '', progress: 0, milestones: '', reason: 'Land acquisition', notes: '' }
 
-function AddProject({ addedProjects, onAdd }) {
-  const [form, setForm] = useState(emptyProject)
+function AddProject({ addedProjects, onAdd, initialProject = null, onCancel }) {
+  const [form, setForm] = useState(() => initialProject ? { ...emptyProject, ...initialProject } : emptyProject)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault()
     setError('')
-    const project = {
+    let project = {
       ...form,
       id: form.id.trim() || `NEW-${String(Date.now()).slice(-6)}`,
       cost: Number(form.cost) || 0,
@@ -353,12 +375,24 @@ function AddProject({ addedProjects, onAdd }) {
       status: form.reason === 'No delay reported' ? 'Watching' : 'At risk',
       updated: 'Just now',
     }
-    onAdd(project).then(() => { setSaved(true); setForm(emptyProject) }).catch((saveError) => setError(saveError.message))
+    try {
+      const scoreResponse = await fetch('/api/risk/score', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ record: { ...form, original_cost_crore: form.originalCost, anticipated_cost_crore: form.cost, delay_reason: form.reason, milestones_achieved: Number(String(form.milestones).split(' ')[0]) || 0, milestones_total: Number(String(form.milestones).split('of ')[1]) || 0 } }) })
+      if (scoreResponse.status === 401) throw new Error('Your admin session expired. Please log in again.')
+      if (scoreResponse.ok) {
+        const score = await scoreResponse.json()
+        project = { ...project, risk: score.cost_risk, time: score.time_risk, status: score.priority >= 75 ? 'At risk' : 'Watching' }
+      }
+      await onAdd(project)
+      setSaved(true)
+      setForm(emptyProject)
+    } catch (saveError) {
+      setError(saveError.message)
+    }
   }
   return <>
-    <div className="intake-heading"><div><span className="eyebrow">PORTFOLIO INTAKE / NEW RECORD</span><h2>Add a monitored project</h2><p>Capture the project baseline and the evidence needed for future monthly risk scoring.</p></div><span className="decision-badge">ADMIN RECORD · DEMO DATA</span></div>
+    <div className="intake-heading"><div><span className="eyebrow">PORTFOLIO INTAKE / {initialProject ? 'EDIT RECORD' : 'NEW RECORD'}</span><h2>{initialProject ? 'Edit monitored project' : 'Add a monitored project'}</h2><p>Capture the project baseline and the evidence needed for future monthly risk scoring.</p></div><span className="decision-badge">ADMIN RECORD · DEMO DATA</span></div>
     {saved && <div className="save-confirmation"><strong>Project saved successfully.</strong><span>It is now available to the portfolio and state map after refresh.</span><button onClick={() => setSaved(false)}>Dismiss</button></div>}{error && <div className="login-error">{error}</div>}
-    <div className="intake-layout"><form className="panel project-form" onSubmit={submit}><FormSection title="Project identity" hint="Use the stable PAIMANA project ID when available."><div className="form-grid"><Field label="Project name" required><input required value={form.name} onChange={update('name')} placeholder="e.g. Coastal highway package" /></Field><Field label="Project ID"><input value={form.id} onChange={update('id')} placeholder="e.g. N24002501" /></Field><Field label="Sector"><select value={form.sector} onChange={update('sector')}><option>Railways</option><option>Road Transport</option><option>Water Resources</option><option>Power</option><option>Urban Transport</option><option>Health</option></select></Field><Field label="State / UT" required><input required value={form.state} onChange={update('state')} placeholder="e.g. Maharashtra" /></Field></div></FormSection><FormSection title="Financial baseline" hint="Amounts are recorded in crore rupees."><div className="form-grid"><Field label="Original approved cost" required><div className="input-suffix"><input required type="number" min="0" value={form.originalCost} onChange={update('originalCost')} placeholder="0" /><span>₹ Cr</span></div></Field><Field label="Latest anticipated cost" required><div className="input-suffix"><input required type="number" min="0" value={form.cost} onChange={update('cost')} placeholder="0" /><span>₹ Cr</span></div></Field><Field label="Date of approval"><input type="date" value={form.approvalDate} onChange={update('approvalDate')} /></Field></div></FormSection><FormSection title="Schedule and progress" hint="These fields establish the project’s first comparable observation."><div className="form-grid"><Field label="Original completion date"><input type="date" value={form.completionDate} onChange={update('completionDate')} /></Field><Field label="Anticipated completion date"><input type="date" value={form.anticipatedDate} onChange={update('anticipatedDate')} /></Field><Field label="Physical progress"><div className="range-field"><input type="range" min="0" max="100" value={form.progress} onChange={update('progress')} /><output>{form.progress}%</output></div></Field><Field label="Milestones achieved"><input value={form.milestones} onChange={update('milestones')} placeholder="e.g. 18 of 29" /></Field></div></FormSection><FormSection title="Current evidence" hint="Select the most recent reported reason for delay or risk."><div className="form-grid"><Field label="Primary delay reason" required><select required value={form.reason} onChange={update('reason')}><option>Land acquisition</option><option>Finance / funding</option><option>Contractor capacity</option><option>Utility shifting</option><option>Litigation</option><option>Right of way</option><option>No delay reported</option></select></Field><Field label="Field note"><textarea value={form.notes} onChange={update('notes')} placeholder="Add a concise evidence note from the latest report..." /></Field></div></FormSection><div className="form-actions"><span><b>*</b> Required fields</span><button type="button" className="cancel-button" onClick={() => setForm(emptyProject)}>Clear form</button><button type="submit" className="primary-button">Save project <span>↗</span></button></div></form><aside className="intake-aside"><section className="panel intake-tip"><span className="eyebrow">BEFORE YOU SAVE</span><h3>Build a useful baseline</h3><ul><li>Match the exact bracketed ID from the report.</li><li>Keep original and anticipated costs separate.</li><li>Use the latest reported completion date.</li></ul></section><section className="panel recent-projects"><div className="panel-head"><div><span className="eyebrow">THIS SESSION</span><h3>Recently added</h3></div><span className="count-badge">{addedProjects.length}</span></div>{addedProjects.length === 0 ? <p className="muted">Saved projects will appear here for review.</p> : addedProjects.map((project) => <div className="recent-project" key={project.id}><span className="priority-dot" /><div><strong>{project.name}</strong><small>[{project.id}] · {project.state}</small></div><RiskPill score={project.risk} /></div>)}</section></aside></div>
+    <div className="intake-layout"><form className="panel project-form" onSubmit={submit}><FormSection title="Project identity" hint="Use the stable PAIMANA project ID when available."><div className="form-grid"><Field label="Project name" required><input required value={form.name} onChange={update('name')} placeholder="e.g. Coastal highway package" /></Field><Field label="Project ID"><input value={form.id} onChange={update('id')} placeholder="e.g. N24002501" readOnly={Boolean(initialProject)} /></Field><Field label="Sector"><select value={form.sector} onChange={update('sector')}><option>Railways</option><option>Road Transport</option><option>Water Resources</option><option>Power</option><option>Urban Transport</option><option>Health</option></select></Field><Field label="State / UT" required><input required value={form.state} onChange={update('state')} placeholder="e.g. Maharashtra" /></Field></div></FormSection><FormSection title="Financial baseline" hint="Amounts are recorded in crore rupees."><div className="form-grid"><Field label="Original approved cost" required><div className="input-suffix"><input required type="number" min="0" value={form.originalCost} onChange={update('originalCost')} placeholder="0" /><span>₹ Cr</span></div></Field><Field label="Latest anticipated cost" required><div className="input-suffix"><input required type="number" min="0" value={form.cost} onChange={update('cost')} placeholder="0" /><span>₹ Cr</span></div></Field><Field label="Date of approval"><input type="date" value={form.approvalDate} onChange={update('approvalDate')} /></Field></div></FormSection><FormSection title="Schedule and progress" hint="These fields establish the project’s first comparable observation."><div className="form-grid"><Field label="Original completion date"><input type="date" value={form.completionDate} onChange={update('completionDate')} /></Field><Field label="Anticipated completion date"><input type="date" value={form.anticipatedDate} onChange={update('anticipatedDate')} /></Field><Field label="Physical progress"><div className="range-field"><input type="range" min="0" max="100" value={form.progress} onChange={update('progress')} /><output>{form.progress}%</output></div></Field><Field label="Milestones achieved"><input value={form.milestones} onChange={update('milestones')} placeholder="e.g. 18 of 29" /></Field></div></FormSection><FormSection title="Current evidence" hint="Select the most recent reported reason for delay or risk."><div className="form-grid"><Field label="Primary delay reason" required><select required value={form.reason} onChange={update('reason')}><option>Land acquisition</option><option>Finance / funding</option><option>Contractor capacity</option><option>Utility shifting</option><option>Litigation</option><option>Right of way</option><option>No delay reported</option></select></Field><Field label="Field note"><textarea value={form.notes} onChange={update('notes')} placeholder="Add a concise evidence note from the latest report..." /></Field></div></FormSection><div className="form-actions"><span><b>*</b> Required fields</span><button type="button" className="cancel-button" onClick={onCancel || (() => setForm(emptyProject))}>{onCancel ? 'Cancel' : 'Clear form'}</button><button type="submit" className="primary-button">{initialProject ? 'Update project' : 'Save project'} <span>↗</span></button></div></form><aside className="intake-aside"><section className="panel intake-tip"><span className="eyebrow">BEFORE YOU SAVE</span><h3>Build a useful baseline</h3><ul><li>Match the exact bracketed ID from the report.</li><li>Keep original and anticipated costs separate.</li><li>Use the latest reported completion date.</li></ul></section><section className="panel recent-projects"><div className="panel-head"><div><span className="eyebrow">SAVED RECORDS</span><h3>Recently added</h3></div><span className="count-badge">{addedProjects.length}</span></div>{addedProjects.length === 0 ? <p className="muted">Saved projects will appear here for review.</p> : addedProjects.map((project) => <div className="recent-project" key={project.id}><span className="priority-dot" /><div><strong>{project.name}</strong><small>[{project.id}] · {project.state}</small></div><RiskPill score={project.risk} /></div>)}</section></aside></div>
   </>
 }
 
@@ -369,14 +403,16 @@ const officialNumber = (value) => new Intl.NumberFormat('en-IN', { maximumFracti
 const normalizeStateName = (name = '') => name.toUpperCase().replace(/&/g, 'AND').replace(/[^A-Z]/g, '')
 const stateAliases = {
   DELHI: 'NCTOFDELHI', ODISHA: 'ORISSA', PUDUCHERRY: 'PONDICHERRY',
-  DADRAANDNAGARHAVELI: 'DADRAANDNAGARHAVELIANDDAMANDIU', DAMANDIU: 'DADRAANDNAGARHAVELIANDDAMANDIU',
+  DADRAANDNAGARHAVELI: 'DADRAANDNAGARHAVELIANDDAMANDIU', DAMANANDDIU: 'DADRAANDNAGARHAVELIANDDAMANDIU', DAMANDIU: 'DADRAANDNAGARHAVELIANDDAMANDIU',
+  ANDAMANANDNICOBAR: 'ANDAMANANDNICOBARISLANDS', ANDAMANNICOBAR: 'ANDAMANANDNICOBARISLANDS', ANDAMANNICOBARISLANDS: 'ANDAMANANDNICOBARISLANDS',
 }
 const stateKey = (name) => stateAliases[normalizeStateName(name)] || normalizeStateName(name)
 
-function StateProjects({ paimanaData, paimanaError }) {
+function StateProjects({ projects, paimanaData, paimanaError }) {
   const [selectedState, setSelectedState] = useState('')
   const states = paimanaData?.states ?? []
-  const activeState = states.find((state) => stateKey(state.StateName) === stateKey(selectedState)) || paimanaData?.national_total
+    const activeState = states.find((state) => stateKey(state.StateName) === stateKey(selectedState)) || (!selectedState ? paimanaData?.national_total : null)
+  const stateProjects = projects.filter((project) => stateKey(project.state) === stateKey(selectedState))
   const selectState = useCallback((stateName) => setSelectedState(stateName), [])
 
   return <section className="state-projects panel">
@@ -395,7 +431,8 @@ function StateProjects({ paimanaData, paimanaError }) {
           <StateStat label="Completed this month" value={officialNumber(activeState.CompletedProject)} />
           <StateStat label="Newly added" value={officialNumber(activeState.NewAddedProject)} />
         </div>
-        <small className="source-attribution">Source: PAIMANA Prism dashboard demonstration records</small>
+        {selectedState && stateProjects.length > 0 && <div className="state-project-list"><span className="eyebrow">PROJECTS IN THIS STATE</span>{stateProjects.map((project) => <strong key={project.id}>{project.name} <small>[{project.id}]</small></strong>)}</div>}
+        <small className="source-attribution">Source: official PAIMANA aggregates; project records are labelled separately.</small>
       </div>
       <StateMap states={states} onHover={selectState} />
     </div>}
@@ -406,8 +443,8 @@ function StateStat({ label, value }) { return <div><span>{label}</span><strong>{
 
 function StateMap({ states, onHover }) {
   const [hovered, setHovered] = useState(null)
-  const byName = new globalThis.Map(states.map((state) => [stateKey(state.StateName), state]))
-  const counts = states.map((state) => Number(state.ProjectCount) || 0)
+  const byName = new globalThis.Map(states.filter((state) => Number(state.ProjectCount) > 0).map((state) => [stateKey(state.StateName), state]))
+  const counts = states.filter((state) => Number(state.ProjectCount) > 0).map((state) => Number(state.ProjectCount) || 0)
   const minCount = Math.min(...counts, 0)
   const maxCount = Math.max(...counts, 1)
   const colourFor = (count) => {
@@ -426,8 +463,8 @@ function StateMap({ states, onHover }) {
     <svg className="state-map" viewBox={indiaMap.viewBox} role="img" aria-label="India map coloured by official PAIMANA project count">
       {indiaMap.locations.map((location) => {
         const state = byName.get(stateKey(location.name))
-        return <path key={location.id} d={location.path} className={state ? 'map-state has-data' : 'map-state'} fill={state ? colourFor(state.ProjectCount) : '#d8ddd8'} onMouseEnter={() => showState(state)} onFocus={() => showState(state)} onClick={() => showState(state)}>
-          <title>{state ? `${state.StateName}: ${officialNumber(state.ProjectCount)} projects` : `${location.name}: no PAIMANA data`}</title>
+          return <path key={location.id} d={location.path} className={state ? 'map-state has-data' : 'map-state'} fill={state ? colourFor(state.ProjectCount) : '#d8ddd8'} onMouseEnter={() => showState(state)} onFocus={() => showState(state)} onClick={() => showState(state)}>
+            {state && <title>{state.StateName}: {officialNumber(state.ProjectCount)} projects</title>}
         </path>
       })}
     </svg>
@@ -438,7 +475,7 @@ function StateMap({ states, onHover }) {
 
 function Queue({ projects, onOpen }) { return <section className="panel queue-panel"><div className="queue-toolbar"><div><p className="muted">Ranked by combined predicted deterioration over the next 1–3 reports.</p></div><div className="toolbar-controls"><button className="filter">All risks ▾</button><button className="filter">All states ▾</button></div></div><div className="queue-list">{projects.map((project) => <ProjectRow key={project.id} project={project} onOpen={onOpen} />)}</div></section> }
 
-function Intelligence({ project, onSimulate }) { return <><div className="project-hero"><div><span className="eyebrow">PROJECT ID [{project.id}] · {project.sector.toUpperCase()}</span><h2>{project.name}</h2><p>{project.state} · Updated from Monthly Flash Report, {project.updated}</p></div><div className="hero-score"><span>OVERALL PRIORITY</span><strong>{project.risk}</strong><small>High attention</small></div></div><div className="dashboard-grid intelligence-grid"><section className="panel chart-panel"><div className="panel-head"><div><span className="eyebrow">PROJECT TRAJECTORY</span><h2>Cost and expenditure</h2></div><span className="legend"><i className="orange" /> Cost <i className="green" /> Expenditure</span></div><ResponsiveContainer width="100%" height={250}><AreaChart data={trend}><defs><linearGradient id="costFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d6553e" stopOpacity=".16" /><stop offset="100%" stopColor="#d6553e" stopOpacity="0" /></linearGradient></defs><CartesianGrid vertical={false} stroke="#e6e1d8" /><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#6d706b', fontSize: 11 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#9a9b95', fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="cost" stroke="#d6553e" fill="url(#costFill)" strokeWidth={2} /><Area type="monotone" dataKey="spend" stroke="#3e8a72" fill="none" strokeWidth={2} /></AreaChart></ResponsiveContainer></section><section className="panel insight-panel"><div className="panel-head"><div><span className="eyebrow">EXPLAINED WARNING</span><h2>Why this project is flagged</h2></div></div><div className="warning-box"><strong>Schedule deterioration likely</strong><span>Predicted probability <b>87%</b></span></div><ul className="reason-list"><li><b>+14.6%</b><span>Anticipated cost rose across 5 reports</span></li><li><b>2×</b><span>Completion date revised in last 6 months</span></li><li><b>−18 pts</b><span>Milestone achievement vs. similar projects</span></li></ul><button className="primary-button" onClick={onSimulate}>Run intervention scenario <span>↗</span></button></section></div><div className="detail-strip"><div><span>ANTICIPATED COST</span><strong>₹12,840 Cr</strong><small>+14.6% from original</small></div><div><span>COMPLETION DATE</span><strong>Dec 2026</strong><small className="red-text">+11 months revised</small></div><div><span>MILESTONES</span><strong>62% achieved</strong><small>18 of 29 milestones</small></div><div><span>DELAY REASON</span><strong>{project.reason}</strong><small>Reported in 3 updates</small></div></div></> }
+function Intelligence({ project, onSimulate, onEdit }) { return <><div className="project-hero"><div><span className="eyebrow">PROJECT ID [{project.id}] · {project.sector.toUpperCase()}</span><h2>{project.name}</h2><p>{project.state} · Updated from Monthly Flash Report, {project.updated}</p></div><div className="hero-actions"><button className="filter" onClick={onEdit}>Edit project</button><div className="hero-score"><span>OVERALL PRIORITY</span><strong>{project.risk}</strong><small>High attention</small></div></div></div><div className="dashboard-grid intelligence-grid"><section className="panel chart-panel"><div className="panel-head"><div><span className="eyebrow">PROJECT TRAJECTORY</span><h2>Cost and expenditure</h2></div><span className="legend"><i className="orange" /> Cost <i className="green" /> Expenditure</span></div><ResponsiveContainer width="100%" height={250}><AreaChart data={trend}><defs><linearGradient id="costFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d6553e" stopOpacity=".16" /><stop offset="100%" stopColor="#d6553e" stopOpacity="0" /></linearGradient></defs><CartesianGrid vertical={false} stroke="#e6e1d8" /><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#6d706b', fontSize: 11 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#9a9b95', fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="cost" stroke="#d6553e" fill="url(#costFill)" strokeWidth={2} /><Area type="monotone" dataKey="spend" stroke="#3e8a72" fill="none" strokeWidth={2} /></AreaChart></ResponsiveContainer></section><section className="panel insight-panel"><div className="panel-head"><div><span className="eyebrow">EXPLAINED WARNING</span><h2>Why this project is flagged</h2></div></div><div className="warning-box"><strong>Schedule deterioration likely</strong><span>Predicted probability <b>87%</b></span></div><ul className="reason-list"><li><b>+14.6%</b><span>Anticipated cost rose across 5 reports</span></li><li><b>2×</b><span>Completion date revised in last 6 months</span></li><li><b>−18 pts</b><span>Milestone achievement vs. similar projects</span></li></ul><button className="primary-button" onClick={onSimulate}>Run intervention scenario <span>↗</span></button></section></div><div className="detail-strip"><div><span>ANTICIPATED COST</span><strong>₹{project.cost || '12,840'} Cr</strong><small>Latest available estimate</small></div><div><span>COMPLETION DATE</span><strong>{project.anticipatedDate || 'Dec 2026'}</strong><small className="red-text">Current reported estimate</small></div><div><span>PHYSICAL PROGRESS</span><strong>{project.progress}% achieved</strong><small>Latest project observation</small></div><div><span>DELAY REASON</span><strong>{project.reason}</strong><small>Latest reported evidence</small></div></div></> }
 
 function Simulator({ project, delay, increase, setDelay, setIncrease, scenarioTime, scenarioCost }) { return <><div className="simulator-head"><div><span className="eyebrow">SCENARIO LAB / {project.id}</span><h2>Test the cost of waiting</h2><p>Explore how a hypothetical intervention delay may change this project’s risk profile.</p></div><span className="decision-badge">DECISION SUPPORT ONLY</span></div><div className="sim-grid"><section className="panel controls-panel"><span className="eyebrow">ASSUMPTIONS</span><h2>Adjust the scenario</h2><label>Additional delay <output>{delay} months</output><input type="range" min="0" max="12" value={delay} onChange={(event) => setDelay(Number(event.target.value))} /></label><label>Assumed cost increase <output>{increase}%</output><input type="range" min="0" max="30" value={increase} onChange={(event) => setIncrease(Number(event.target.value))} /></label><div className="scenario-caption">Starting point: <b>{project.name}</b><br />Current score based on latest available report.</div></section><section className="panel result-panel"><span className="eyebrow">PROJECTED RESPONSE</span><h2>Risk after scenario</h2><div className="result-grid"><div><span>Cost risk</span><strong className="red-text">{scenarioCost}</strong><small>+{scenarioCost - project.risk} points</small></div><div><span>Time risk</span><strong className="amber-text">{scenarioTime}</strong><small>+{scenarioTime - project.time} points</small></div></div><div className="impact-line"><span>Estimated completion impact</span><b>+{delay} months</b></div><div className="impact-line"><span>Estimated cost impact</span><b>₹{Math.round(project.cost * increase / 100)} Cr</b></div><div className="caution">This is a modelled scenario, not a guaranteed outcome. Use it to frame intervention conversations alongside current field evidence.</div></section></div></> }
 

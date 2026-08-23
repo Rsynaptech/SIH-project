@@ -13,13 +13,14 @@ from urllib.request import Request as UrlRequest, urlopen
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from backend.risk_model import score_record, train_from_history
 
 app = FastAPI(title="PAIMANA Prism API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173").split(","),
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
 
@@ -46,6 +47,11 @@ class ProjectRecord(BaseModel):
     reason: str = "No delay reported"
     progress: int = 0
     updated: str = "Just now"
+
+
+class RiskRequest(BaseModel):
+    record: dict
+    history: list[dict] | None = None
 
 
 PROJECT_STORE_KEY = "paimana:projects"
@@ -115,6 +121,8 @@ def valid_session(token: str | None) -> bool:
 
 
 def require_session(request: Request) -> None:
+    if os.getenv("AUTH_DISABLED", "false").lower() == "true":
+        return
     if not valid_session(request.cookies.get(SESSION_COOKIE)):
         raise HTTPException(status_code=401, detail="Authentication required")
 
@@ -124,8 +132,9 @@ def fetch_paimana_state_data() -> list[dict]:
     request = UrlRequest(
         PAIMANA_STATE_VIEW_URL,
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; PAIMANA-Prism/1.0)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml",
+            "Referer": "https://paimana-proj.mospi.gov.in/",
         },
     )
     last_error: Exception | None = None
@@ -188,6 +197,8 @@ def read_root() -> dict[str, str]:
 
 @app.post("/api/auth/login")
 def login(payload: LoginRequest, response: Response) -> dict[str, str]:
+    if os.getenv("AUTH_DISABLED", "false").lower() == "true":
+        return {"message": "Authentication temporarily disabled"}
     entered_phone = re.sub(r"\D", "", payload.phone)
     password_prefix = admin_accounts().get(entered_phone)
     expected_password = f"{password_prefix}{entered_phone[-4:]}" if password_prefix else ""
@@ -201,6 +212,8 @@ def login(payload: LoginRequest, response: Response) -> dict[str, str]:
 
 @app.get("/api/auth/me")
 def current_session(request: Request) -> dict[str, bool]:
+    if os.getenv("AUTH_DISABLED", "false").lower() == "true":
+        return {"authenticated": True}
     return {"authenticated": valid_session(request.cookies.get(SESSION_COOKIE))}
 
 
@@ -224,6 +237,32 @@ def add_project(project: ProjectRecord, request: Request) -> ProjectRecord:
     records.insert(0, project.model_dump())
     project_store_request("json.set", records)
     return project
+
+
+@app.put("/api/projects/{project_id}")
+def update_project(project_id: str, project: ProjectRecord, request: Request) -> ProjectRecord:
+    require_session(request)
+    if project.id != project_id:
+        raise HTTPException(status_code=400, detail="Project ID cannot be changed during an edit")
+    records = saved_projects()
+    if not any(record.get("id") == project_id for record in records):
+        raise HTTPException(status_code=404, detail="Project was not found")
+    updated = [project.model_dump() if record.get("id") == project_id else record for record in records]
+    project_store_request("json.set", updated)
+    return project
+
+
+@app.post("/api/risk/score")
+def risk_score(payload: RiskRequest, request: Request) -> dict:
+    require_session(request)
+    return score_record(payload.record, payload.history)
+
+
+@app.post("/api/risk/train")
+def risk_train(payload: list[dict], request: Request) -> dict:
+    require_session(request)
+    result = train_from_history(payload)
+    return {key: value for key, value in result.items() if key not in {"cost_model", "time_model"}}
 
 
 @app.get("/api/paimana/states")
