@@ -56,6 +56,7 @@ class RiskRequest(BaseModel):
 
 PROJECT_STORE_KEY = "paimana:projects"
 PROJECT_STORE_PATH = Path(__file__).resolve().parent.parent / "data" / "processed" / "projects.json"
+PAIMANA_SNAPSHOT_PATH = Path(__file__).resolve().parent / "paimana_snapshot.json"
 
 
 def project_store_request(command: str, value: object = None) -> object:
@@ -175,6 +176,19 @@ def state_payload(force_refresh: bool = False) -> dict:
     except HTTPException:
         if _state_cache is not None:
             return {**_state_cache, "stale": True}
+        if PAIMANA_SNAPSHOT_PATH.exists():
+            state_data = json.loads(PAIMANA_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+            national_total = next((row for row in state_data if row.get("StateId") == 0), None)
+            _state_cache = {
+                "source": f"{PAIMANA_STATE_VIEW_URL} (verified fallback snapshot)",
+                "retrieved_at": now.isoformat(),
+                "freeze_month": national_total.get("Freezmonth") if national_total else None,
+                "national_total": national_total,
+                "states": [row for row in state_data if row.get("StateId") != 0],
+                "stale": True,
+            }
+            _state_cache_updated_at = now
+            return _state_cache
         raise
 
     national_total = next((row for row in state_data if row.get("StateId") == 0), None)
