@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Area,
   AreaChart,
@@ -69,8 +69,48 @@ function RiskPill({ score }) {
 }
 
 function App() {
+  const [authenticated, setAuthenticated] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((response) => response.json())
+      .then((data) => setAuthenticated(Boolean(data.authenticated)))
+      .catch(() => setAuthenticated(false))
+  }, [])
+
+  if (authenticated === null) return <div className="auth-loading">Checking secure session...</div>
+  if (!authenticated) return <Login onAuthenticated={() => setAuthenticated(true)} />
+  return <Dashboard onLogout={() => setAuthenticated(false)} />
+}
+
+function Login({ onAuthenticated }) {
+  const [phone, setPhone] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async (event) => {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const response = await fetch('/api/auth/login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.detail || 'Unable to sign in')
+      }
+      onAuthenticated()
+    } catch (loginError) {
+      setError(loginError instanceof TypeError ? 'Authentication server is unavailable. Start FastAPI on port 8000 and try again.' : loginError.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return <main className="auth-shell"><section className="auth-panel"><div className="brand auth-brand"><div className="brand-mark">P</div><div><strong>PAIMANA</strong><span>PRISM / ADMIN CONSOLE</span></div></div><div className="auth-copy"><span className="eyebrow">PROJECT MONITORING ACCESS</span><h1>Welcome back.</h1><p>Enter the configured admin phone number to manage projects and review early warnings.</p></div><form className="login-form" onSubmit={submit}><label className="field"><span>Admin phone number</span><input required type="tel" inputMode="numeric" autoComplete="username" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Enter phone number" /></label>{error && <div className="login-error">{error}</div>}<button className="primary-button" disabled={busy}>{busy ? 'Checking access...' : 'Continue'} <span>↗</span></button></form><small className="auth-footnote">Private admin access · Session expires automatically</small></section><aside className="auth-aside"><span className="eyebrow">PAIMANA PRISM / 01</span><h2>Evidence before urgency.</h2><p>Turn monthly project reporting into a clear view of what needs attention next.</p><div className="auth-stat"><strong>Predict</strong><span>Explain · Benchmark · Simulate</span></div></aside></main>
+}
+
+function Dashboard({ onLogout }) {
   const [view, setView] = useState('overview')
   const [selected, setSelected] = useState(projects[0])
+  const [addedProjects, setAddedProjects] = useState([])
   const [delay, setDelay] = useState(3)
   const [increase, setIncrease] = useState(10)
   const paimanaData = dashboardStateData
@@ -227,8 +267,9 @@ function App() {
           <button className={view === 'queue' ? 'active' : ''} onClick={() => setView('queue')}><span>!</span> Early warnings <b>12</b></button>
           <button className={view === 'intelligence' ? 'active' : ''} onClick={() => setView('intelligence')}><span>⌁</span> Project intelligence</button>
           <button className={view === 'simulator' ? 'active' : ''} onClick={() => setView('simulator')}><span>↗</span> What-if simulator</button>
+          <button className={view === 'add-project' ? 'active' : ''} onClick={() => setView('add-project')}><span>＋</span> Add project</button>
         </nav>
-        <div className="sidebar-foot"><span>MODEL STATUS</span><strong>Baseline + RF ready</strong><small>Last scored 23 Aug 2026</small></div>
+        <div className="sidebar-foot"><span>MODEL STATUS</span><strong>Baseline + RF ready</strong><small>Last scored 23 Aug 2026</small><button className="logout-button" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); onLogout() }}>Log out</button></div>
       </aside>
 
       <main className="content">
@@ -238,6 +279,7 @@ function App() {
         {view === 'queue' && <Queue onOpen={openProject} />}
         {view === 'intelligence' && <Intelligence project={selected} onSimulate={() => setView('simulator')} />}
         {view === 'simulator' && <Simulator project={selected} delay={delay} increase={increase} setDelay={setDelay} setIncrease={setIncrease} scenarioTime={scenarioTime} scenarioCost={scenarioCost} />}
+        {view === 'add-project' && <AddProject addedProjects={addedProjects} onAdd={(project) => setAddedProjects((current) => [project, ...current])} />}
       </main>
     </div>
   )
@@ -255,6 +297,37 @@ function Overview({ onOpen, paimanaData, paimanaError }) {
 
 function Metric({ label, value, detail, tone = '' }) { return <div className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div> }
 function ProjectRow({ project, onOpen }) { return <button className="project-row" onClick={() => onOpen(project)}><span className="priority-dot" /><span><strong>{project.name}</strong><small>{project.id} · {project.reason}</small></span><RiskPill score={project.risk} /><span className="chevron">→</span></button> }
+
+const emptyProject = { name: '', id: '', sector: 'Railways', state: '', cost: '', originalCost: '', approvalDate: '', completionDate: '', anticipatedDate: '', progress: 0, milestones: '', reason: 'Land acquisition', notes: '' }
+
+function AddProject({ addedProjects, onAdd }) {
+  const [form, setForm] = useState(emptyProject)
+  const [saved, setSaved] = useState(false)
+  const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }))
+  const submit = (event) => {
+    event.preventDefault()
+    const project = {
+      ...form,
+      id: form.id.trim() || `NEW-${String(Date.now()).slice(-6)}`,
+      cost: Number(form.cost) || 0,
+      risk: form.reason === 'No delay reported' ? 34 : form.progress < 40 ? 78 : 58,
+      time: form.reason === 'No delay reported' ? 28 : form.progress < 40 ? 72 : 51,
+      status: form.reason === 'No delay reported' ? 'Watching' : 'At risk',
+      updated: 'Just now',
+    }
+    onAdd(project)
+    setSaved(true)
+    setForm(emptyProject)
+  }
+  return <>
+    <div className="intake-heading"><div><span className="eyebrow">PORTFOLIO INTAKE / NEW RECORD</span><h2>Add a monitored project</h2><p>Capture the project baseline and the evidence needed for future monthly risk scoring.</p></div><span className="decision-badge">SESSION DRAFT · NOT YET OFFICIAL</span></div>
+    {saved && <div className="save-confirmation"><strong>Project added to this session.</strong><span>It is ready for review and can be enriched with the next Monthly Flash Report.</span><button onClick={() => setSaved(false)}>Dismiss</button></div>}
+    <div className="intake-layout"><form className="panel project-form" onSubmit={submit}><FormSection title="Project identity" hint="Use the stable PAIMANA project ID when available."><div className="form-grid"><Field label="Project name" required><input required value={form.name} onChange={update('name')} placeholder="e.g. Coastal highway package" /></Field><Field label="Project ID"><input value={form.id} onChange={update('id')} placeholder="e.g. N24002501" /></Field><Field label="Sector"><select value={form.sector} onChange={update('sector')}><option>Railways</option><option>Road Transport</option><option>Water Resources</option><option>Power</option><option>Urban Transport</option><option>Health</option></select></Field><Field label="State / UT" required><input required value={form.state} onChange={update('state')} placeholder="e.g. Maharashtra" /></Field></div></FormSection><FormSection title="Financial baseline" hint="Amounts are recorded in crore rupees."><div className="form-grid"><Field label="Original approved cost" required><div className="input-suffix"><input required type="number" min="0" value={form.originalCost} onChange={update('originalCost')} placeholder="0" /><span>₹ Cr</span></div></Field><Field label="Latest anticipated cost" required><div className="input-suffix"><input required type="number" min="0" value={form.cost} onChange={update('cost')} placeholder="0" /><span>₹ Cr</span></div></Field><Field label="Date of approval"><input type="date" value={form.approvalDate} onChange={update('approvalDate')} /></Field></div></FormSection><FormSection title="Schedule and progress" hint="These fields establish the project’s first comparable observation."><div className="form-grid"><Field label="Original completion date"><input type="date" value={form.completionDate} onChange={update('completionDate')} /></Field><Field label="Anticipated completion date"><input type="date" value={form.anticipatedDate} onChange={update('anticipatedDate')} /></Field><Field label="Physical progress"><div className="range-field"><input type="range" min="0" max="100" value={form.progress} onChange={update('progress')} /><output>{form.progress}%</output></div></Field><Field label="Milestones achieved"><input value={form.milestones} onChange={update('milestones')} placeholder="e.g. 18 of 29" /></Field></div></FormSection><FormSection title="Current evidence" hint="Select the most recent reported reason for delay or risk."><div className="form-grid"><Field label="Primary delay reason" required><select required value={form.reason} onChange={update('reason')}><option>Land acquisition</option><option>Finance / funding</option><option>Contractor capacity</option><option>Utility shifting</option><option>Litigation</option><option>Right of way</option><option>No delay reported</option></select></Field><Field label="Field note"><textarea value={form.notes} onChange={update('notes')} placeholder="Add a concise evidence note from the latest report..." /></Field></div></FormSection><div className="form-actions"><span><b>*</b> Required fields</span><button type="button" className="cancel-button" onClick={() => setForm(emptyProject)}>Clear form</button><button type="submit" className="primary-button">Save project <span>↗</span></button></div></form><aside className="intake-aside"><section className="panel intake-tip"><span className="eyebrow">BEFORE YOU SAVE</span><h3>Build a useful baseline</h3><ul><li>Match the exact bracketed ID from the report.</li><li>Keep original and anticipated costs separate.</li><li>Use the latest reported completion date.</li></ul></section><section className="panel recent-projects"><div className="panel-head"><div><span className="eyebrow">THIS SESSION</span><h3>Recently added</h3></div><span className="count-badge">{addedProjects.length}</span></div>{addedProjects.length === 0 ? <p className="muted">Saved projects will appear here for review.</p> : addedProjects.map((project) => <div className="recent-project" key={project.id}><span className="priority-dot" /><div><strong>{project.name}</strong><small>[{project.id}] · {project.state}</small></div><RiskPill score={project.risk} /></div>)}</section></aside></div>
+  </>
+}
+
+function FormSection({ title, hint, children }) { return <fieldset><legend>{title}</legend><p>{hint}</p>{children}</fieldset> }
+function Field({ label, required, children }) { return <label className="field"><span>{label}{required && <b> *</b>}</span>{children}</label> }
 
 const officialNumber = (value) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(value ?? 0)
 const normalizeStateName = (name = '') => name.toUpperCase().replace(/&/g, 'AND').replace(/[^A-Z]/g, '')
